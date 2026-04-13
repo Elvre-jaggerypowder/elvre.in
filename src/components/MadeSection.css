@@ -1,0 +1,74 @@
+.howmade-section {
+  padding: 5vh 5vw;
+  color: #fff;
+  text-align: center;
+  position: relative;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.howmade-content {
+  width: 90%;              /* occupy 90% of the screen width */
+  max-width: 1200px;       /* increase max width */
+  margin: 0 auto;
+  padding: 3vh 2vw;        /* reduce side padding */
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.howmade-heading {
+  font-size: clamp(2rem, 4vw, 3rem); /* slightly larger */
+  font-weight: 600;
+  margin-bottom: 2vh;
+  font-family: 'Livvic', sans-serif;
+  color: #4e2d1e;
+  text-align: justify;
+  line-height: 1.4;
+}
+
+.howmade-description {
+  font-family: 'Livvic', sans-serif;
+  font-weight: 500;
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem); /* slightly bigger text */
+  line-height: 1.7;
+  color: #000;
+  text-align: justify;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .howmade-content {
+    width: 95%;
+    padding: 2.5vh 3vw;
+  }
+}
+
+@media (max-width: 768px) {
+  .howmade-content {
+    width: 95%;
+    padding: 2vh 4vw;
+  }
+
+  .howmade-heading {
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+  }
+
+  .howmade-description {
+    font-size: clamp(1rem, 4vw, 1.2rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .howmade-content {
+    width: 100%;
+    padding: 2vh 3vw;
+  }
+
+  .howmade-heading {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+
+  .howmade-description {
+    font-size: clamp(0.95rem, 4vw, 1rem);
+  }
+}

@@ -1,0 +1,89 @@
+.testimonial-container {
+  padding: 2rem;
+  background-color: #fff8f0;
+  text-align: center;
+  background-color: rgb(123, 144, 65);
+  height: 70vh;
+}
+.testimonial-subheading{
+  font-family: 'centurygothic';
+  margin-top: 40px;
+  font-size: 16px;
+  color: white;
+  margin-bottom: 10px;
+  font-weight: 100;
+}
+.testimonial-heading {
+  font-family: 'livvicsemibold';
+  margin-top: 20px;
+  font-size: 2.2rem;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.testimonial-card {
+  padding: 50px;
+  border-radius: 20px;
+  max-width: 600px;
+  margin-top: -20px;
+  margin-left: 340px;
+}
+.testimonial-label{
+  font-family: 'livvic';
+  margin-top: 10px;
+  font-size: 1rem;
+  color: black;
+}
+.testimonial-message {
+  font-family: 'centurygothic';
+  text-align: center;
+  font-size: 1.2rem;
+  color: black;
+  margin-bottom: 1.5rem;
+}
+
+.testimonial-name {
+  font-family: 'Livvic';
+  font-size: 1.3rem;
+  color: black;
+  font-weight: 600;
+}
+
+.no-feedback-message {
+  font-family: 'centurygothic';
+  text-align: center;
+  color: black;
+  font-size: 1.3rem;
+  padding: 2rem 0;
+}
+@media (max-width: 768px) {
+  .testimonial-container {
+    padding: 2rem 1rem;
+    height: auto;
+  }
+
+  .testimonial-heading {
+    font-size: 1.6rem;
+  }
+
+  .testimonial-card {
+    padding: 30px 15px;
+    margin: 0 auto;
+  }
+
+  .testimonial-message {
+    font-size: 1rem;
+  }
+
+  .testimonial-name {
+    font-size: 1.1rem;
+  }
+
+  .testimonial-label {
+    font-size: 0.95rem;
+  }
+
+  .no-feedback-message {
+    font-size: 1.1rem;
+  }
+}

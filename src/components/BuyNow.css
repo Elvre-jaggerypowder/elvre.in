@@ -1,0 +1,152 @@
+/* ===== Page Background ===== */
+.buy-now-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+/* ===== Buy Now Card ===== */
+.buy-now-card {
+  background: rgba(255, 255, 255, 0.4); /* translucent white */
+  border-radius: 20px;
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
+  animation: fadeIn 0.6s ease;
+  text-align: center;
+
+  /* ✅ Glassmorphism effect */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ===== Logo ===== */
+.buy-now-logo {
+  width: 150px;
+  height: auto;
+  margin-bottom: -10px;
+  margin-top: -30px;
+  margin-left: 11rem;
+  display: block;
+}
+
+/* ===== Title ===== */
+.buy-now-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 25px;
+}
+
+/* ===== Form Style ===== */
+.buy-now-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.form-row label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3b1f1f;
+  margin-bottom: 6px;
+}
+
+.form-row input,
+.form-row textarea {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #d8d3c5;
+  background: #fffaf1;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-row input:focus,
+.form-row textarea:focus {
+  border-color: #8c5d3d;
+  box-shadow: 0px 0px 6px rgba(140, 93, 61, 0.4);
+}
+
+/* ===== Submit Button ===== */
+.buy-now-submit {
+  background: #263C28;
+  color: #ffffff;
+  border: none;
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.buy-now-submit:hover {
+  background: #19271a;
+  transform: translateY(-2px);
+}
+
+.buy-now-submit:disabled {
+  background: #c4a898;
+  cursor: not-allowed;
+}
+
+.buy-now-status {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 12px;
+  color: #3b1f1f;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .buy-now-card {
+    padding: 25px 20px;
+    border-radius: 16px;
+  }
+
+  .buy-now-logo {
+    width: 100px;
+    margin-bottom: 0.4rem;
+    margin-left: 6rem;
+    margin-top: 0.4rem;
+  }
+
+  .buy-now-title {
+    font-size: 22px;
+  }
+
+  .form-row input,
+  .form-row textarea {
+    font-size: 14px;
+    padding: 12px;
+  }
+
+  .buy-now-submit {
+    font-size: 15px;
+    padding: 12px;
+  }
+}

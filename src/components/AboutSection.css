@@ -1,0 +1,135 @@
+.about-section {
+  padding: 60px;
+  background-color: #fffdf8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0; /* removed extra gap */
+  min-height: auto; /* flexible height */
+  box-sizing: border-box;
+  padding-bottom: 0;
+  border-bottom: 0;
+  gap: 0;
+}
+
+.about-text-container {
+  max-width: 1300px;
+  width: 100%;
+  padding: 0 15px;
+}
+
+.about-intro {
+  text-transform: uppercase;
+  color: rgb(59, 31, 31);
+  font-weight: 600;
+  font-size: clamp(20px, 3vw, 35px);
+  letter-spacing: 1px;
+  font-family: 'Livvic', sans-serif;
+  text-align: center;
+}
+
+.about-heading {
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  color: rgb(123, 66, 47);
+  font-weight: 900;
+  margin: 10px 0 20px;
+  font-family: 'Livvic', sans-serif;
+  text-align: center;
+}
+
+.about-description {
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 500;
+  font-size: clamp(14px, 2vw, 18px);
+  line-height: 1.9;
+  color: black;
+  text-align: justify;
+  padding: 0 10px;
+}
+
+.about-images {
+  display: flex;
+  justify-content: center;
+  align-items: justify;
+  margin-top: 10px;
+  gap: 10px; 
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.img-side1 { 
+  width: clamp(250px, 45vw, 600px);
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 0;   /* FIX: removed extra 200px */
+  margin-left: -120px;
+  
+}
+
+.img-side {
+  width: clamp(200px, 40vw, 550px);
+  height: auto;
+  object-fit: contain;
+  margin-right: -50px;
+  margin-top: -170px;
+}
+
+.img-center {
+  width: clamp(200px, 35vw, 500px);
+  height: auto;
+  object-fit: contain;
+  margin-left: -380px;
+  position: absolute;
+  
+  
+}
+
+@media (max-width: 992px) {
+  .img-side1 {
+    margin-left: -60px;
+    margin-bottom: 0; /* removed extra */
+  }
+
+  .img-side {
+    margin-right: -25px;
+    margin-top: -90px;
+  }
+
+  .img-center {
+    margin-left: -180px;
+    margin-bottom: 0; /* removed extra */
+  }
+}
+
+@media (max-width: 768px) {
+  .about-section {
+    padding: 20px;
+    min-height: auto; 
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .about-description {
+    line-height: 1.6;
+  }
+
+  .img-side1,
+  .img-side {
+    display: none;
+  }
+
+  .img-center {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    margin: 20px auto 0;
+  }
+
+  .about-images {
+    justify-content: center;
+    gap: 0;
+  }
+}

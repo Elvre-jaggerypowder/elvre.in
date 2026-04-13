@@ -1,0 +1,128 @@
+/* Base Styles */
+.modern-agriculture-section {
+  position: relative;
+  padding: 60px 80px;
+  min-height: 140vh;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.modern-agriculture-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.modern-agriculture-subheading {
+  font-weight: 500;
+  font-family: 'Livvic';
+  color: rgb(81, 66, 66);
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.modern-agriculture-heading {
+  font-family: 'Livvicsemibold';
+  font-size: 2.7rem;
+  color: rgb(81, 66, 66);
+}
+
+.modern-agriculture-description {
+  font-size: 18px;
+  font-weight: 500;
+  text-align: justify;
+  color: black;
+  margin-top: 20px;
+  font-family: 'Quicksand';
+}
+
+.modern-agriculture-img {
+  position: absolute;
+  left: 0;
+  width: 100vw;
+  z-index: 1;
+  object-fit: cover;
+}
+
+/* Tablet Styles */
+@media (max-width: 1024px) {
+  .modern-agriculture-section {
+    padding: 50px 60px;
+  }
+
+  .modern-agriculture-heading {
+    font-size: 2.2rem;
+  }
+
+  .modern-agriculture-subheading {
+    font-size: 1.8rem;
+  }
+
+  .modern-agriculture-description {
+    font-size: 16px;
+  }
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .modern-agriculture-section {
+    padding: 0; /* remove side padding */
+    min-height: auto;
+  }
+
+  .modern-agriculture-content {
+    margin-top: 4vh;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 10px; /* small padding only */
+  }
+
+  .modern-agriculture-subheading {
+    font-size: clamp(1.4rem, 4vw, 1.5rem);
+  }
+
+  .modern-agriculture-heading {
+    font-size: clamp(1.7rem, 5vw, 2rem);
+  }
+
+  .modern-agriculture-description {
+    font-size: clamp(0.9rem, 3.5vw, 1rem);
+    line-height: 1.5;
+  }
+
+  .modern-agriculture-img {
+    position: relative;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto;
+    margin: 0 auto;
+    display: block;
+    object-fit: contain;
+  }
+}
+
+/* Small Mobile Styles */
+@media (max-width: 480px) {
+  .modern-agriculture-section {
+    padding: 0; /* edge-to-edge on very small devices */
+  }
+
+  .modern-agriculture-heading {
+    font-size: clamp(1.5rem, 6vw, 1.8rem);
+  }
+
+  .modern-agriculture-subheading {
+    font-size: clamp(1.2rem, 5vw, 1.4rem);
+  }
+
+  .modern-agriculture-description {
+    font-size: clamp(0.8rem, 4vw, 0.95rem);
+  }
+
+  .modern-agriculture-img {
+    width: 100% !important;
+    height: auto;
+    margin-left: 0;
+  }
+}

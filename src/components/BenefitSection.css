@@ -1,0 +1,64 @@
+.benefits-wrapper {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding: 1rem 0.5rem;
+  background-color: rgb(210, 194, 95);
+}
+
+.benefit-card {
+  position: relative;
+  width: 400px;
+  height: 110px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.benefit-text1{
+  font-family: 'Livvic';
+  color: white;
+  font-weight: 500;
+  font-size: 1rem;
+  margin-left: 90px;
+}
+.benefit-text2{
+  font-family: 'Livvic';
+  color: white;
+  font-weight: 500;
+  font-size: 1rem;
+  margin-left: 90px;
+}
+.benefit-text3{
+  font-family: 'Livvic';
+  color: white;
+  font-weight: 500;
+  font-size: 1rem;
+  margin-left: 100px;
+}
+/* ✅ Mobile responsive for Benefits section */
+@media (max-width: 768px) {
+  .benefits-wrapper {
+    gap: 1rem;
+    padding: 2vh 3vw;
+  }
+
+  .benefit-card {
+    width: 90vw; /* Fit screen width on all phones */
+    height: auto; /* Adjust height automatically */
+    min-height: 100px;
+  }
+
+  /* Text inside cards - same spacing for all phones */
+  .benefit-text1,
+  .benefit-text2,
+  .benefit-text3 {
+    font-size: clamp(0.8rem, 3.5vw, 1rem);
+    margin-left: 22vw; /* relative margin instead of px */
+    text-align: justify;
+  }
+}

@@ -1,0 +1,78 @@
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color:#263C28;
+  padding: 2px 40px;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+}
+
+.logo img {
+  height: 80px;
+  object-fit: contain;
+}
+
+.nav-links {
+  display: flex;
+  gap: 30px;
+}
+
+.nav-links a {
+  cursor: pointer;
+  font-family: 'Quicksand';
+  text-decoration: none;
+  color: white; 
+  font-weight: 500;
+  font-size: 16px;
+  transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+  color: #f1a40f; 
+}
+/* Hide hamburger on desktop */
+.hamburger {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    margin-right: 1rem;
+  }
+
+  .bar {
+    width: 25px;
+    height: 3px;
+    background-color: white;
+  }
+
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 70px;
+    right: 0;
+    width: 100%;
+    background-color:#263C28;
+    padding: 1rem 2rem;
+    z-index: 999;
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
+  .nav-links a {
+    text-align: center;
+    padding: 1rem 0;
+    color: white;
+    border-bottom: 1px solid #514242;
+  }
+}

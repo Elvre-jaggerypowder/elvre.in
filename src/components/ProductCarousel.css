@@ -1,0 +1,106 @@
+.product-carousel-section {
+  padding: 60px 20px;
+  background-color: #fffdf8;
+}
+
+.product-carousel-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.product-carousel-title {
+  font-family: 'Livvicsemibold';
+  font-size: 2.2rem;
+  color: #263C28;
+  margin-bottom: 10px;
+}
+
+.product-carousel-subtitle {
+  font-family: 'centurygothic';
+  font-size: 1rem;
+  color: #666;
+}
+
+.product-swiper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 40px;
+}
+
+.product-card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+}
+
+.product-image {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  margin: 0 auto 20px;
+}
+
+.product-name {
+  font-family: 'Livvic';
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.product-description {
+  font-family: 'centurygothic';
+  font-size: 0.9rem;
+  color: #777;
+  margin-bottom: 12px;
+}
+
+.product-price {
+  font-family: 'Livvicsemibold';
+  font-size: 1.3rem;
+  color: #263C28;
+  margin-bottom: 15px;
+}
+
+.product-btn {
+  background-color: #263C28;
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 30px;
+  font-family: 'Livvic';
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.product-btn:hover {
+  background-color: #f1a40f;
+}
+
+@media (max-width: 768px) {
+  .product-carousel-section {
+    padding: 40px 15px;
+  }
+  
+  .product-carousel-title {
+    font-size: 1.6rem;
+  }
+  
+  .product-swiper {
+    padding: 10px 20px;
+  }
+  
+  .product-card {
+    padding: 15px;
+  }
+  
+  .product-image {
+    max-width: 150px;
+  }
+}
