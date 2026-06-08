@@ -1,0 +1,63 @@
+/* ========== GLOBAL RESET – FIX BLANK SCREEN ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  background: #fffdf8;   /* warm off-white background – visible immediately */
+}
+
+body {
+  font-family: 'Quicksand', 'centurygothic', sans-serif;
+  color: #1e2a1e;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure all sections are visible and not hidden */
+section {
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Fix AOS initial opacity – no white flash */
+[data-aos] {
+  pointer-events: auto !important;
+  opacity: 1 !important;  /* override AOS temporary opacity */
+}
+
+/* Remove any accidental hidden elements */
+body * {
+  visibility: visible;
+  opacity: 1;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Smooth anchor scroll with fixed navbar */
+html {
+  scroll-padding-top: 80px;
+}
+
+/* Better touch targets for mobile/ios */
+@media (pointer: coarse) {
+  button, a, .nav-link-btn {
+    min-height: 44px;
+  }
+}

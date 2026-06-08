@@ -1,0 +1,220 @@
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
+import Footer from "./Footer";
+import "./OrderTracking.css";
+
+const OrderTracking = () => {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrder();
+  }, [orderId]);
+
+  const loadOrder = () => {
+    const orders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
+    const foundOrder = orders.find(o => o.id === orderId);
+    setOrder(foundOrder);
+    setLoading(false);
+  };
+
+  const getStatusStep = (currentStatus) => {
+    const steps = [
+      { key: "pending", label: "Order Placed", icon: "📦", description: "Your order has been received" },
+      { key: "processing", label: "Processing", icon: "⚙️", description: "We're preparing your order" },
+      { key: "shipped", label: "Shipped", icon: "🚚", description: "Your order is on the way" },
+      { key: "delivered", label: "Delivered", icon: "✅", description: "Your order has been delivered" }
+    ];
+    
+    let currentIndex = steps.findIndex(s => s.key === currentStatus);
+    if (currentIndex === -1) currentIndex = 0;
+    
+    return steps.map((step, index) => ({
+      ...step,
+      completed: index <= currentIndex,
+      active: index === currentIndex
+    }));
+  };
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="tracking-loading">
+          <div className="loader"></div>
+          <p>Loading order details...</p>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  if (!order) {
+    return (
+      <>
+        <Navbar />
+        <div className="order-not-found">
+          <div className="not-found-icon">🔍</div>
+          <h2>Order Not Found</h2>
+          <p>We couldn't find an order with ID: <strong>{orderId}</strong></p>
+          <button onClick={() => navigate("/")} className="back-home-btn">
+            Back to Home
+          </button>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  const statusSteps = getStatusStep(order.status);
+
+  return (
+    <>
+      <Navbar />
+      <div className="tracking-container">
+        <div className="tracking-wrapper">
+          <h1>Track Your Order</h1>
+          
+          {/* Order Info Card */}
+          <div className="order-info-card">
+            <div className="order-header">
+              <div>
+                <h3>Order #{order.id}</h3>
+                <p className="order-date">Placed on {order.orderDate}</p>
+              </div>
+              <div className={`order-status-badge status-${order.status}`}>
+                {order.status === "pending" && "⏳ Pending"}
+                {order.status === "processing" && "⚙️ Processing"}
+                {order.status === "shipped" && "🚚 Shipped"}
+                {order.status === "delivered" && "✅ Delivered"}
+                {order.status === "cancelled" && "❌ Cancelled"}
+              </div>
+            </div>
+            
+            {/* Tracking Timeline */}
+            <div className="tracking-timeline">
+              {statusSteps.map((step, index) => (
+                <div key={index} className={`timeline-step ${step.completed ? "completed" : ""} ${step.active ? "active" : ""}`}>
+                  <div className="step-icon">{step.icon}</div>
+                  <div className="step-content">
+                    <h4>{step.label}</h4>
+                    <p>{step.description}</p>
+                    {step.active && (
+                      <div className="estimated-time">
+                        {step.key === "pending" && "Estimated: 1-2 days"}
+                        {step.key === "processing" && "Estimated: 3-4 days"}
+                        {step.key === "shipped" && "Estimated: 5-7 days"}
+                        {step.key === "delivered" && "Delivered on time"}
+                      </div>
+                    )}
+                  </div>
+                  {index < statusSteps.length - 1 && <div className="step-line"></div>}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Products Details Card */}
+          <div className="order-details-card">
+            <h3>Order Items</h3>
+            <div className="products-list">
+              {order.products && order.products.map((product, idx) => {
+                const productPrice = product.price || product.priceValue || 0;
+                const productQty = product.quantity || 1;
+                const productTotal = productPrice * productQty;
+                
+                return (
+                  <div key={idx} className="order-product">
+                    <img 
+                      src={product.image || "/assets/jaggery.png"} 
+                      alt={product.name} 
+                      className="product-image"
+                      onError={(e) => {
+                        e.target.src = "/assets/jaggery.png";
+                      }}
+                    />
+                    <div className="product-info">
+                      <h4>{product.name}</h4>
+                      <div className="product-meta">
+                        <span className="product-price">₹{productPrice}</span>
+                        <span className="product-quantity">Quantity: {productQty}</span>
+                      </div>
+                    </div>
+                    <div className="product-total">
+                      ₹{productTotal}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Price Summary */}
+            <div className="price-summary">
+              <div className="summary-row">
+                <span>Subtotal ({order.products?.reduce((sum, p) => sum + (p.quantity || 1), 0) || 0} items):</span>
+                <span>₹{order.subtotal || 0}</span>
+              </div>
+              {order.discount > 0 && (
+                <div className="summary-row discount">
+                  <span>Discount:</span>
+                  <span>-₹{order.discount}</span>
+                </div>
+              )}
+              <div className="summary-row">
+                <span>Shipping:</span>
+                <span>{order.shipping === 0 ? "Free" : `₹${order.shipping || 0}`}</span>
+              </div>
+              {order.subtotal < 499 && order.subtotal > 0 && (
+                <div className="free-shipping-note">
+                  ✨ Add ₹{(499 - order.subtotal).toFixed(2)} more for free shipping!
+                </div>
+              )}
+              <div className="summary-row total">
+                <span>Total Amount:</span>
+                <span>₹{order.total || 0}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Shipping & Payment Details */}
+          <div className="shipping-details-card">
+            <div className="details-grid">
+              <div className="detail-section">
+                <h4>📦 Shipping Address</h4>
+                <p>{order.address || "Address not provided"}</p>
+                {order.phone && <p className="phone">📞 {order.phone}</p>}
+                {order.email && <p className="email">✉️ {order.email}</p>}
+              </div>
+              <div className="detail-section">
+                <h4>💳 Payment Information</h4>
+                <p><strong>Method:</strong> {order.paymentMethod || "Cash on Delivery"}</p>
+                <p><strong>Status:</strong> {order.paymentMethod === "Cash on Delivery" ? "Pending (Pay on delivery)" : "Paid"}</p>
+                <p><strong>Order Date:</strong> {order.orderDate}</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Help Section */}
+          <div className="help-section">
+            <h3>Need Help With Your Order?</h3>
+            <p>If you have any questions about your order, please contact our support team.</p>
+            <div className="help-buttons">
+              <button onClick={() => navigate("/products")} className="shop-more-btn">
+                Continue Shopping
+              </button>
+              <button onClick={() => window.location.href = "mailto:elvreofficals@gmail.com"} className="contact-btn">
+                Contact Support
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </>
+  );
+};
+
+export default OrderTracking;

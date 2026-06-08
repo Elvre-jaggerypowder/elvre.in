@@ -1,0 +1,88 @@
+.about-section {
+  padding: 80px 5%;
+  background: linear-gradient(135deg, #fffdf8 0%, #fff8f0 100%);
+}
+
+.about-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+.about-text {
+  flex: 1;
+}
+
+.about-tag {
+  font-family: 'Livvic', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: #f1a40f;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: 15px;
+}
+
+.about-text h2 {
+  font-family: 'Livvicsemibold', sans-serif;
+  font-size: 2.5rem;
+  color: #263C28;
+  margin: 20px 0;
+  line-height: 1.3;
+}
+
+.about-text h2 .highlight {
+  color: #f1a40f;
+}
+
+.about-text p {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #444;
+  margin-bottom: 30px;
+}
+
+.about-features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.feature {
+  font-family: 'Livvic', sans-serif;
+  font-size: 1rem;
+  color: #263C28;
+}
+
+.feature span {
+  color: #f1a40f;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+/* ✅ REMOVED - about-image styles since image is gone */
+.about-image {
+  display: none;  /* ✅ HIDE empty container */
+}
+
+@media (max-width: 768px) {
+  .about-section {
+    padding: 50px 5%;
+  }
+  
+  .about-text h2 {
+    font-size: 1.8rem;
+  }
+  
+  .about-features {
+    grid-template-columns: 1fr;
+  }
+  
+  .about-container {
+    gap: 30px;
+  }
+}
