@@ -31,7 +31,6 @@ const Checkout = () => {
 
   useEffect(() => {
     checkUserAndLoadCart();
-    loadSavedAddresses();
   }, []);
 
   const checkUserAndLoadCart = () => {
@@ -42,6 +41,7 @@ const Checkout = () => {
       return;
     }
     loadCart();
+    loadSavedAddresses();
   };
 
   const loadCart = () => {
@@ -62,45 +62,56 @@ const Checkout = () => {
     const shippingCharge = subtotalAmount > 499 ? 0 : 40;
     setShipping(shippingCharge);
     setTotal(subtotalAmount + shippingCharge);
-    setLoading(false);
   };
 
   const loadSavedAddresses = () => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    if (currentUser) {
-      const addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
-      const uniqueAddresses = addresses.filter((addr, index, self) =>
-        index === self.findIndex((a) => 
-          a.fullName === addr.fullName &&
-          a.phone === addr.phone &&
-          a.address === addr.address &&
-          a.city === addr.city &&
-          a.state === addr.state &&
-          a.pincode === addr.pincode
-        )
-      );
-      setSavedAddresses(uniqueAddresses);
-      
-      if (uniqueAddresses.length > 0) {
-        const lastAddress = uniqueAddresses[uniqueAddresses.length - 1];
-        setSelectedAddressId(lastAddress.id);
-        setFormData({
-          fullName: lastAddress.fullName,
-          email: lastAddress.email,
-          phone: lastAddress.phone,
-          address: lastAddress.address,
-          city: lastAddress.city,
-          state: lastAddress.state,
-          pincode: lastAddress.pincode,
-          paymentMethod: "cod"
-        });
+    try {
+      const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+      if (currentUser && currentUser.email) {
+        const addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
+        
+        const uniqueAddresses = addresses.filter((addr, index, self) =>
+          index === self.findIndex((a) => 
+            a.fullName === addr.fullName &&
+            a.phone === addr.phone &&
+            a.address === addr.address &&
+            a.city === addr.city &&
+            a.state === addr.state &&
+            a.pincode === addr.pincode
+          )
+        );
+        setSavedAddresses(uniqueAddresses);
+        
+        if (uniqueAddresses.length > 0) {
+          const lastAddress = uniqueAddresses[uniqueAddresses.length - 1];
+          setSelectedAddressId(lastAddress.id);
+          setFormData({
+            fullName: lastAddress.fullName,
+            email: lastAddress.email,
+            phone: lastAddress.phone,
+            address: lastAddress.address,
+            city: lastAddress.city,
+            state: lastAddress.state,
+            pincode: lastAddress.pincode,
+            paymentMethod: "cod"
+          });
+          setShowNewAddressForm(false);
+        } else {
+          setShowNewAddressForm(true);
+        }
+      } else {
+        setShowNewAddressForm(true);
       }
+    } catch (error) {
+      console.error("Error loading addresses:", error);
+      setShowNewAddressForm(true);
     }
+    setLoading(false);
   };
 
   const saveAddress = (addressData) => {
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    if (currentUser) {
+    if (currentUser && currentUser.email) {
       let addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
       
       const isDuplicate = addresses.some(addr => 
@@ -122,7 +133,6 @@ const Checkout = () => {
         localStorage.setItem(`addresses_${currentUser.email}`, JSON.stringify(addresses));
         setSavedAddresses(addresses);
         setSelectedAddressId(newAddress.id);
-        setFormData(addressData);
       } else {
         const existingAddress = addresses.find(addr => 
           addr.fullName === addressData.fullName &&
@@ -134,7 +144,6 @@ const Checkout = () => {
         );
         if (existingAddress) {
           setSelectedAddressId(existingAddress.id);
-          setFormData(existingAddress);
         }
       }
     }
@@ -183,9 +192,19 @@ const Checkout = () => {
       return;
     }
     
-    if (showNewAddressForm && formData.fullName && formData.address) {
-      saveAddress(formData);
-      setStep(2);
+    if (showNewAddressForm) {
+      if (formData.fullName && formData.address && formData.city && formData.state && formData.pincode && formData.phone) {
+        saveAddress(formData);
+        setStep(2);
+        return;
+      } else {
+        alert("Please fill all address fields");
+        return;
+      }
+    }
+    
+    if (!showNewAddressForm && savedAddresses.length === 0) {
+      setShowNewAddressForm(true);
       return;
     }
     
@@ -298,17 +317,6 @@ const Checkout = () => {
     );
   }
 
-  const uniqueAddresses = savedAddresses.filter((addr, index, self) =>
-    index === self.findIndex((a) => 
-      a.fullName === addr.fullName &&
-      a.phone === addr.phone &&
-      a.address === addr.address &&
-      a.city === addr.city &&
-      a.state === addr.state &&
-      a.pincode === addr.pincode
-    )
-  );
-
   return (
     <>
       <Navbar />
@@ -327,11 +335,11 @@ const Checkout = () => {
               {step === 1 ? (
                 <>
                   <h2>Shipping Information</h2>
-                  {uniqueAddresses.length > 0 && !showNewAddressForm && (
+                  {savedAddresses.length > 0 && !showNewAddressForm && (
                     <div className="saved-addresses-section">
                       <h3>Select Saved Address</h3>
                       <div className="addresses-list">
-                        {uniqueAddresses.map((addr) => (
+                        {savedAddresses.map((addr) => (
                           <div key={addr.id} className={`address-card ${selectedAddressId === addr.id ? "selected" : ""}`} onClick={() => handleSelectAddress(addr.id)}>
                             <div className="address-radio"><input type="radio" name="savedAddress" checked={selectedAddressId === addr.id} onChange={() => handleSelectAddress(addr.id)} /></div>
                             <div className="address-details">
@@ -346,7 +354,7 @@ const Checkout = () => {
                     </div>
                   )}
                   
-                  {(showNewAddressForm || uniqueAddresses.length === 0) && (
+                  {(showNewAddressForm || savedAddresses.length === 0) && (
                     <div className="new-address-form">
                       <h3>Add New Address</h3>
                       <div className="form-row">
@@ -360,7 +368,7 @@ const Checkout = () => {
                         <div className="form-group"><label>State *</label><input type="text" name="state" value={formData.state} onChange={handleInputChange} required /></div>
                         <div className="form-group"><label>Pincode *</label><input type="text" name="pincode" value={formData.pincode} onChange={handleInputChange} required /></div>
                       </div>
-                      {uniqueAddresses.length > 0 && <button type="button" className="back-to-addresses-btn" onClick={() => setShowNewAddressForm(false)}>← Back to Saved Addresses</button>}
+                      {savedAddresses.length > 0 && <button type="button" className="back-to-addresses-btn" onClick={() => setShowNewAddressForm(false)}>← Back to Saved Addresses</button>}
                     </div>
                   )}
                   
