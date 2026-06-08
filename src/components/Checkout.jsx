@@ -69,7 +69,6 @@ const Checkout = () => {
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     if (currentUser) {
       const addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
-      // Remove duplicates before setting
       const uniqueAddresses = addresses.filter((addr, index, self) =>
         index === self.findIndex((a) => 
           a.fullName === addr.fullName &&
@@ -99,13 +98,11 @@ const Checkout = () => {
     }
   };
 
-  // ✅ Fixed saveAddress function - No duplicates
   const saveAddress = (addressData) => {
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     if (currentUser) {
       let addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
       
-      // Check if address already exists
       const isDuplicate = addresses.some(addr => 
         addr.fullName === addressData.fullName &&
         addr.phone === addressData.phone &&
@@ -125,8 +122,8 @@ const Checkout = () => {
         localStorage.setItem(`addresses_${currentUser.email}`, JSON.stringify(addresses));
         setSavedAddresses(addresses);
         setSelectedAddressId(newAddress.id);
+        setFormData(addressData);
       } else {
-        // Find existing address and select it
         const existingAddress = addresses.find(addr => 
           addr.fullName === addressData.fullName &&
           addr.phone === addressData.phone &&
@@ -137,6 +134,7 @@ const Checkout = () => {
         );
         if (existingAddress) {
           setSelectedAddressId(existingAddress.id);
+          setFormData(existingAddress);
         }
       }
     }
@@ -180,11 +178,18 @@ const Checkout = () => {
   };
 
   const handleContinueToPayment = () => {
-    if (!selectedAddressId && !showNewAddressForm) {
-      alert("Please select or add a shipping address");
+    if (selectedAddressId) {
+      setStep(2);
       return;
     }
-    setStep(2);
+    
+    if (showNewAddressForm && formData.fullName && formData.address) {
+      saveAddress(formData);
+      setStep(2);
+      return;
+    }
+    
+    alert("Please select or add a shipping address");
   };
 
   const handleBackToAddress = () => {
@@ -195,12 +200,14 @@ const Checkout = () => {
   const placeOrder = (e) => {
     e.preventDefault();
     
+    if (showNewAddressForm && !selectedAddressId) {
+      saveAddress(formData);
+    }
+    
     if (!formData.fullName || !formData.email || !formData.phone || !formData.address) {
       alert("Please fill all required fields");
       return;
     }
-    
-    saveAddress(formData);
     
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     const now = new Date();
@@ -208,7 +215,6 @@ const Checkout = () => {
     const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const fullDateTime = `${orderDate} at ${orderTime}`;
     
-    // Reduce product stock
     const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
     const updatedProducts = allProducts.map(product => {
       const orderedItem = cart.find(item => item.id === product.id);
@@ -292,7 +298,6 @@ const Checkout = () => {
     );
   }
 
-  // Remove duplicates for display
   const uniqueAddresses = savedAddresses.filter((addr, index, self) =>
     index === self.findIndex((a) => 
       a.fullName === addr.fullName &&
@@ -327,14 +332,8 @@ const Checkout = () => {
                       <h3>Select Saved Address</h3>
                       <div className="addresses-list">
                         {uniqueAddresses.map((addr) => (
-                          <div 
-                            key={addr.id} 
-                            className={`address-card ${selectedAddressId === addr.id ? "selected" : ""}`} 
-                            onClick={() => handleSelectAddress(addr.id)}
-                          >
-                            <div className="address-radio">
-                              <input type="radio" name="savedAddress" checked={selectedAddressId === addr.id} onChange={() => handleSelectAddress(addr.id)} />
-                            </div>
+                          <div key={addr.id} className={`address-card ${selectedAddressId === addr.id ? "selected" : ""}`} onClick={() => handleSelectAddress(addr.id)}>
+                            <div className="address-radio"><input type="radio" name="savedAddress" checked={selectedAddressId === addr.id} onChange={() => handleSelectAddress(addr.id)} /></div>
                             <div className="address-details">
                               <p><strong>{addr.fullName}</strong></p>
                               <p>{addr.address}, {addr.city}, {addr.state} - {addr.pincode}</p>
