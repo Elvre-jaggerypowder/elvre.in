@@ -44,45 +44,46 @@ const ProductsPage = () => {
   }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
 
   const loadProducts = async () => {
-    try {
-      const { data: supabaseProducts, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('id', { ascending: true });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const savedProducts = localStorage.getItem("elvreProducts");
-        if (savedProducts) {
-          setProducts(JSON.parse(savedProducts));
-        } else {
-          setDefaultProducts();
-        }
-      } else if (supabaseProducts && supabaseProducts.length > 0) {
-        console.log('Products from Supabase:', supabaseProducts);
-        const formattedProducts = supabaseProducts.map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: `₹${p.price}`,
-          priceValue: p.price,
-          stock: p.stock,
-          image: p.image,
-          category: p.category,
-          badge: p.badge,
-          soldCount: p.sold_count || 0
-        }));
-        setProducts(formattedProducts);
-        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+  try {
+    // ✅ Always fetch latest stock from Supabase
+    const { data: supabaseProducts, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('id', { ascending: true });
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      const savedProducts = localStorage.getItem("elvreProducts");
+      if (savedProducts) {
+        setProducts(JSON.parse(savedProducts));
       } else {
         setDefaultProducts();
       }
-    } catch (err) {
-      console.error('Error loading products:', err);
+    } else if (supabaseProducts && supabaseProducts.length > 0) {
+      console.log('Products from Supabase:', supabaseProducts);
+      const formattedProducts = supabaseProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: `₹${p.price}`,
+        priceValue: p.price,
+        stock: p.stock,  // ✅ This will show updated stock
+        image: p.image,
+        category: p.category,
+        badge: p.badge,
+        soldCount: p.sold_count || 0
+      }));
+      setProducts(formattedProducts);
+      localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+    } else {
       setDefaultProducts();
     }
-    setLoading(false);
-  };
+  } catch (err) {
+    console.error('Error loading products:', err);
+    setDefaultProducts();
+  }
+  setLoading(false);
+};
 
   const setDefaultProducts = () => {
     const defaultProducts = [

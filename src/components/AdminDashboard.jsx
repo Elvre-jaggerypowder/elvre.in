@@ -90,58 +90,52 @@ const AdminDashboard = () => {
     };
   }, []);
 
-  const loadProducts = () => {
-    const savedProducts = localStorage.getItem("elvreProducts");
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    } else {
-      const defaultProducts = [
-        {
-          id: 1,
-          name: "ELVRE Organic Jaggery Powder",
-          description: "500g - Chemical Free, Natural Sweetener",
-          price: "₹149",
-          priceValue: 149,
-          stock: 50,
-          image: "/assets/jaggery.png",
-          category: "jaggery",
-          badge: "Bestseller",
-          soldCount: 245
-        },
-        {
-          id: 2,
-          name: "ELVRE Palm Jaggery",
-          description: "500g - Rich in Minerals",
-          price: "₹199",
-          priceValue: 199,
-          stock: 35,
-          image: "/assets/productpacking.png",
-          category: "jaggery",
-          badge: "Popular",
-          soldCount: 189
-        },
-        {
-          id: 3,
-          name: "ELVRE Gift Pack",
-          description: "500g x 2 - Special Edition",
-          price: "₹299",
-          priceValue: 299,
-          stock: 20,
-          image: "/assets/bowl.png",
-          category: "special",
-          badge: "Limited",
-          soldCount: 67
+  const loadProducts = async () => {
+    try {
+      const { data: supabaseProducts, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedProducts = localStorage.getItem("elvreProducts");
+        if (savedProducts) {
+          setProducts(JSON.parse(savedProducts));
         }
-      ];
-      setProducts(defaultProducts);
-      localStorage.setItem("elvreProducts", JSON.stringify(defaultProducts));
+      } else if (supabaseProducts && supabaseProducts.length > 0) {
+        const formattedProducts = supabaseProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: `₹${p.price}`,
+          priceValue: p.price,
+          stock: p.stock,
+          image: p.image,
+          category: p.category,
+          badge: p.badge,
+          soldCount: p.sold_count || 0
+        }));
+        setProducts(formattedProducts);
+        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+      } else {
+        const savedProducts = localStorage.getItem("elvreProducts");
+        if (savedProducts) {
+          setProducts(JSON.parse(savedProducts));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading products:', err);
+      const savedProducts = localStorage.getItem("elvreProducts");
+      if (savedProducts) {
+        setProducts(JSON.parse(savedProducts));
+      }
     }
     setLoading(false);
   };
 
   const loadOrders = async () => {
     try {
-      // ✅ First try to get orders from Supabase
       const { data: supabaseOrders, error } = await supabase
         .from('orders')
         .select('*')
@@ -149,14 +143,11 @@ const AdminDashboard = () => {
       
       if (error) {
         console.error('Supabase error:', error);
-        // Fallback to localStorage
         const savedOrders = localStorage.getItem("elvreOrders");
         if (savedOrders) {
           setOrders(JSON.parse(savedOrders));
         }
       } else if (supabaseOrders && supabaseOrders.length > 0) {
-        console.log('Orders from Supabase:', supabaseOrders);
-        // Convert Supabase format to match app format
         const formattedOrders = supabaseOrders.map(order => ({
           id: order.id,
           customer: order.customer,
@@ -177,7 +168,6 @@ const AdminDashboard = () => {
         setOrders(formattedOrders);
         localStorage.setItem("elvreOrders", JSON.stringify(formattedOrders));
       } else {
-        // Fallback to localStorage
         const savedOrders = localStorage.getItem("elvreOrders");
         if (savedOrders) {
           setOrders(JSON.parse(savedOrders));
@@ -204,7 +194,6 @@ const AdminDashboard = () => {
         const savedUsers = JSON.parse(localStorage.getItem("users") || "[]");
         setUsers(savedUsers);
       } else if (supabaseUsers && supabaseUsers.length > 0) {
-        console.log('Users from Supabase:', supabaseUsers);
         const formattedUsers = supabaseUsers.map(user => ({
           id: user.id,
           name: user.name,
@@ -226,32 +215,86 @@ const AdminDashboard = () => {
     }
   };
 
-  const loadCoupons = () => {
-    const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
-    setCoupons(savedCoupons);
+  const loadCoupons = async () => {
+    try {
+      const { data: supabaseCoupons, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
+        setCoupons(savedCoupons);
+      } else if (supabaseCoupons && supabaseCoupons.length > 0) {
+        setCoupons(supabaseCoupons);
+        localStorage.setItem("elvreCoupons", JSON.stringify(supabaseCoupons));
+      } else {
+        const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
+        setCoupons(savedCoupons);
+      }
+    } catch (err) {
+      console.error('Error loading coupons:', err);
+      const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
+      setCoupons(savedCoupons);
+    }
   };
 
-  const loadAllReviews = () => {
-    const reviewsList = [];
-    const savedProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
-    
-    savedProducts.forEach(product => {
-      const productReviews = localStorage.getItem(`reviews_${product.id}`);
-      if (productReviews) {
-        const reviews = JSON.parse(productReviews);
-        reviews.forEach(review => {
-          reviewsList.push({
-            ...review,
-            productId: product.id,
-            productName: product.name,
-            productImage: product.image
-          });
+  const loadAllReviews = async () => {
+    try {
+      const { data: supabaseReviews, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const reviewsList = [];
+        const savedProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
+        savedProducts.forEach(product => {
+          const productReviews = localStorage.getItem(`reviews_${product.id}`);
+          if (productReviews) {
+            const reviews = JSON.parse(productReviews);
+            reviews.forEach(review => {
+              reviewsList.push({
+                ...review,
+                productId: product.id,
+                productName: product.name,
+                productImage: product.image
+              });
+            });
+          }
         });
+        setAllReviews(reviewsList);
+      } else if (supabaseReviews && supabaseReviews.length > 0) {
+        const formattedReviews = supabaseReviews.map(review => ({
+          ...review,
+          productId: review.product_id,
+          productName: review.product_name
+        }));
+        setAllReviews(formattedReviews);
+      } else {
+        const reviewsList = [];
+        const savedProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
+        savedProducts.forEach(product => {
+          const productReviews = localStorage.getItem(`reviews_${product.id}`);
+          if (productReviews) {
+            const reviews = JSON.parse(productReviews);
+            reviews.forEach(review => {
+              reviewsList.push({
+                ...review,
+                productId: product.id,
+                productName: product.name,
+                productImage: product.image
+              });
+            });
+          }
+        });
+        setAllReviews(reviewsList);
       }
-    });
-    
-    reviewsList.sort((a, b) => new Date(b.date) - new Date(a.date));
-    setAllReviews(reviewsList);
+    } catch (err) {
+      console.error('Error loading reviews:', err);
+    }
   };
 
   const saveProducts = (updatedProducts) => {
@@ -260,12 +303,17 @@ const AdminDashboard = () => {
     window.dispatchEvent(new Event("productsUpdated"));
   };
 
-  const saveCoupons = (updatedCoupons) => {
-    localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
-    setCoupons(updatedCoupons);
-  };
-
-  const updateOrderStatus = (orderId, newStatus) => {
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const { error: supabaseError } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+      if (supabaseError) console.error('Supabase error:', supabaseError);
+    } catch (err) {
+      console.error('Error updating Supabase:', err);
+    }
+    
     const updatedOrders = orders.map(order =>
       order.id === orderId ? { ...order, status: newStatus } : order
     );
@@ -275,7 +323,17 @@ const AdminDashboard = () => {
     setTimeout(() => setMessage(""), 3000);
   };
 
-  const updatePaymentStatus = (orderId, newPaymentStatus) => {
+  const updatePaymentStatus = async (orderId, newPaymentStatus) => {
+    try {
+      const { error: supabaseError } = await supabase
+        .from('orders')
+        .update({ payment_status: newPaymentStatus })
+        .eq('id', orderId);
+      if (supabaseError) console.error('Supabase error:', supabaseError);
+    } catch (err) {
+      console.error('Error updating Supabase:', err);
+    }
+    
     const updatedOrders = orders.map(order =>
       order.id === orderId ? { ...order, paymentStatus: newPaymentStatus } : order
     );
@@ -285,91 +343,7 @@ const AdminDashboard = () => {
     setTimeout(() => setMessage(""), 3000);
   };
 
-  const handleCreateCoupon = () => {
-    if (!newCoupon.code || !newCoupon.discount || !newCoupon.expiryDate) {
-      setMessage("Please fill all required fields");
-      return;
-    }
-
-    if (coupons.find(c => c.code === newCoupon.code.toUpperCase())) {
-      setMessage("Coupon code already exists!");
-      return;
-    }
-
-    const coupon = {
-      id: Date.now(),
-      code: newCoupon.code.toUpperCase(),
-      discount: parseFloat(newCoupon.discount),
-      type: newCoupon.type,
-      expiryDate: newCoupon.expiryDate,
-      minOrder: parseFloat(newCoupon.minOrder) || 0,
-      maxDiscount: parseFloat(newCoupon.maxDiscount) || 0,
-      usageLimit: parseInt(newCoupon.usageLimit) || 0,
-      usedCount: 0,
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-
-    const updatedCoupons = [...coupons, coupon];
-    saveCoupons(updatedCoupons);
-    
-    setNewCoupon({ code: "", discount: "", type: "percentage", expiryDate: "", minOrder: 0, maxDiscount: 0, usageLimit: 0 });
-    setMessage("Coupon created successfully!");
-    setTimeout(() => setMessage(""), 3000);
-  };
-
-  const toggleCouponStatus = (couponId) => {
-    const updatedCoupons = coupons.map(coupon =>
-      coupon.id === couponId ? { ...coupon, active: !coupon.active } : coupon
-    );
-    saveCoupons(updatedCoupons);
-    setMessage("Coupon status updated!");
-    setTimeout(() => setMessage(""), 2000);
-  };
-
-  const deleteCoupon = (couponId) => {
-    if (window.confirm("Delete this coupon?")) {
-      const updatedCoupons = coupons.filter(coupon => coupon.id !== couponId);
-      saveCoupons(updatedCoupons);
-      setMessage("Coupon deleted!");
-      setTimeout(() => setMessage(""), 2000);
-    }
-  };
-
-  const approveReview = (reviewId, productId) => {
-    const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
-    const updatedReviews = productReviews.map(review =>
-      review.id === reviewId ? { ...review, approved: true, spam: false } : review
-    );
-    localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
-    loadAllReviews();
-    setMessage("Review approved!");
-    setTimeout(() => setMessage(""), 2000);
-  };
-
-  const deleteReview = (reviewId, productId) => {
-    if (window.confirm("Delete this review permanently?")) {
-      const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
-      const updatedReviews = productReviews.filter(review => review.id !== reviewId);
-      localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
-      loadAllReviews();
-      setMessage("Review deleted!");
-      setTimeout(() => setMessage(""), 2000);
-    }
-  };
-
-  const markAsSpam = (reviewId, productId) => {
-    const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
-    const updatedReviews = productReviews.map(review =>
-      review.id === reviewId ? { ...review, spam: true, approved: false } : review
-    );
-    localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
-    loadAllReviews();
-    setMessage("Review marked as spam!");
-    setTimeout(() => setMessage(""), 2000);
-  };
-
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!formData.name || !formData.priceValue || !formData.stock) {
       setMessage("Please fill all required fields");
       return;
@@ -388,9 +362,28 @@ const AdminDashboard = () => {
       soldCount: 0
     };
     
+    try {
+      const { error: supabaseError } = await supabase
+        .from('products')
+        .insert([{
+          id: newProduct.id,
+          name: newProduct.name,
+          description: newProduct.description,
+          price: newProduct.priceValue,
+          stock: newProduct.stock,
+          image: newProduct.image,
+          category: newProduct.category,
+          badge: newProduct.badge,
+          sold_count: 0,
+          created_at: new Date().toISOString()
+        }]);
+      if (supabaseError) console.error('Supabase error:', supabaseError);
+    } catch (err) {
+      console.error('Error saving to Supabase:', err);
+    }
+    
     const updatedProducts = [...products, newProduct];
     saveProducts(updatedProducts);
-    
     setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery" });
     setShowAddForm(false);
     setMessage("Product added successfully!");
@@ -410,7 +403,7 @@ const AdminDashboard = () => {
     setShowAddForm(true);
   };
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     const updatedProducts = products.map(p => 
       p.id === editingProduct.id 
         ? {
@@ -426,6 +419,26 @@ const AdminDashboard = () => {
         : p
     );
     
+    const updatedProduct = updatedProducts.find(p => p.id === editingProduct.id);
+    
+    try {
+      const { error: supabaseError } = await supabase
+        .from('products')
+        .update({
+          name: updatedProduct.name,
+          description: updatedProduct.description,
+          price: updatedProduct.priceValue,
+          stock: updatedProduct.stock,
+          image: updatedProduct.image,
+          category: updatedProduct.category,
+          badge: updatedProduct.badge
+        })
+        .eq('id', editingProduct.id);
+      if (supabaseError) console.error('Supabase update error:', supabaseError);
+    } catch (err) {
+      console.error('Error updating Supabase:', err);
+    }
+    
     saveProducts(updatedProducts);
     setEditingProduct(null);
     setShowAddForm(false);
@@ -434,13 +447,169 @@ const AdminDashboard = () => {
     setTimeout(() => setMessage(""), 3000);
   };
 
-  const handleDeleteProduct = (id) => {
+  const handleDeleteProduct = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
+      try {
+        const { error: supabaseError } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', id);
+        if (supabaseError) console.error('Supabase delete error:', supabaseError);
+      } catch (err) {
+        console.error('Error deleting from Supabase:', err);
+      }
+      
       const updatedProducts = products.filter(p => p.id !== id);
       saveProducts(updatedProducts);
       setMessage("Product deleted successfully!");
       setTimeout(() => setMessage(""), 3000);
     }
+  };
+
+  const handleCreateCoupon = async () => {
+    if (!newCoupon.code || !newCoupon.discount || !newCoupon.expiryDate) {
+      setMessage("Please fill all required fields");
+      return;
+    }
+
+    if (coupons.find(c => c.code === newCoupon.code.toUpperCase())) {
+      setMessage("Coupon code already exists!");
+      return;
+    }
+
+    const coupon = {
+      id: Date.now(),
+      code: newCoupon.code.toUpperCase(),
+      discount: parseFloat(newCoupon.discount),
+      type: newCoupon.type,
+      expiry_date: newCoupon.expiryDate,
+      min_order: parseFloat(newCoupon.minOrder) || 0,
+      max_discount: parseFloat(newCoupon.maxDiscount) || 0,
+      usage_limit: parseInt(newCoupon.usageLimit) || 0,
+      used_count: 0,
+      active: true,
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      const { error } = await supabase.from('coupons').insert([coupon]);
+      if (error) console.error('Supabase error:', error);
+    } catch (err) {
+      console.error('Error:', err);
+    }
+
+    const updatedCoupons = [...coupons, coupon];
+    setCoupons(updatedCoupons);
+    localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
+    setNewCoupon({ code: "", discount: "", type: "percentage", expiryDate: "", minOrder: 0, maxDiscount: 0, usageLimit: 0 });
+    setMessage("Coupon created successfully!");
+    setTimeout(() => setMessage(""), 3000);
+  };
+
+  const toggleCouponStatus = async (couponId) => {
+    const coupon = coupons.find(c => c.id === couponId);
+    const newStatus = !coupon.active;
+    
+    try {
+      const { error } = await supabase
+        .from('coupons')
+        .update({ active: newStatus })
+        .eq('id', couponId);
+      if (error) console.error('Supabase error:', error);
+    } catch (err) {
+      console.error('Error:', err);
+    }
+    
+    const updatedCoupons = coupons.map(coupon =>
+      coupon.id === couponId ? { ...coupon, active: newStatus } : coupon
+    );
+    setCoupons(updatedCoupons);
+    localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
+    setMessage("Coupon status updated!");
+    setTimeout(() => setMessage(""), 2000);
+  };
+
+  const deleteCoupon = async (couponId) => {
+    if (window.confirm("Delete this coupon?")) {
+      try {
+        const { error } = await supabase
+          .from('coupons')
+          .delete()
+          .eq('id', couponId);
+        if (error) console.error('Supabase error:', error);
+      } catch (err) {
+        console.error('Error:', err);
+      }
+      
+      const updatedCoupons = coupons.filter(coupon => coupon.id !== couponId);
+      setCoupons(updatedCoupons);
+      localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
+      setMessage("Coupon deleted!");
+      setTimeout(() => setMessage(""), 2000);
+    }
+  };
+
+  const approveReview = async (reviewId, productId) => {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({ approved: true, spam: false })
+        .eq('id', reviewId);
+      if (error) console.error('Supabase error:', error);
+    } catch (err) {
+      console.error('Error:', err);
+    }
+    
+    const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
+    const updatedReviews = productReviews.map(review =>
+      review.id === reviewId ? { ...review, approved: true, spam: false } : review
+    );
+    localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
+    loadAllReviews();
+    setMessage("Review approved!");
+    setTimeout(() => setMessage(""), 2000);
+  };
+
+  const deleteReview = async (reviewId, productId) => {
+    if (window.confirm("Delete this review permanently?")) {
+      try {
+        const { error } = await supabase
+          .from('reviews')
+          .delete()
+          .eq('id', reviewId);
+        if (error) console.error('Supabase error:', error);
+      } catch (err) {
+        console.error('Error:', err);
+      }
+      
+      const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
+      const updatedReviews = productReviews.filter(review => review.id !== reviewId);
+      localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
+      loadAllReviews();
+      setMessage("Review deleted!");
+      setTimeout(() => setMessage(""), 2000);
+    }
+  };
+
+  const markAsSpam = async (reviewId, productId) => {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({ spam: true, approved: false })
+        .eq('id', reviewId);
+      if (error) console.error('Supabase error:', error);
+    } catch (err) {
+      console.error('Error:', err);
+    }
+    
+    const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
+    const updatedReviews = productReviews.map(review =>
+      review.id === reviewId ? { ...review, spam: true, approved: false } : review
+    );
+    localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
+    loadAllReviews();
+    setMessage("Review marked as spam!");
+    setTimeout(() => setMessage(""), 2000);
   };
 
   const handleLogout = () => {
@@ -512,9 +681,7 @@ const AdminDashboard = () => {
               <h3>Recent Orders</h3>
               <div className="table-responsive">
                 <table className="admin-table">
-                  <thead>
-                    <tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Payment</th><th>Date</th><th>Action</th></tr>
-                  </thead>
+                  <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Payment</th><th>Date</th><th>Action</th></tr></thead>
                   <tbody>
                     {recentOrders.map(order => (
                       <tr key={order.id}>
@@ -586,9 +753,7 @@ const AdminDashboard = () => {
               <h3>Product Inventory ({products.length} items)</h3>
               <div className="table-responsive">
                 <table className="admin-table">
-                  <thead>
-                    <tr><th>Image</th><th>Product</th><th>Price</th><th>Stock</th><th>Sold</th><th>Revenue</th><th>Actions</th></tr>
-                  </thead>
+                  <thead><tr><th>Image</th><th>Product</th><th>Price</th><th>Stock</th><th>Sold</th><th>Revenue</th><th>Actions</th></tr></thead>
                   <tbody>
                     {products.map(product => (
                       <tr key={product.id}>
@@ -613,18 +778,7 @@ const AdminDashboard = () => {
             <h3>All Orders ({orders.length})</h3>
             <div className="table-responsive">
               <table className="admin-table orders-table">
-                <thead>
-                  <tr>
-                    <th>Order ID</th>
-                    <th>Customer Details</th>
-                    <th>Products</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Payment Status</th>
-                    <th>Date</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Order ID</th><th>Customer Details</th><th>Products</th><th>Amount</th><th>Status</th><th>Payment Status</th><th>Date</th><th>Action</th></tr></thead>
                 <tbody>
                   {orders.length === 0 ? (
                     <tr><td colSpan="8" className="no-data">No orders yet</td></tr>
@@ -684,10 +838,7 @@ const AdminDashboard = () => {
               <div className="form-grid">
                 <input type="text" placeholder="Coupon Code" value={newCoupon.code} onChange={(e) => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})} />
                 <input type="number" placeholder="Discount" value={newCoupon.discount} onChange={(e) => setNewCoupon({...newCoupon, discount: e.target.value})} />
-                <select value={newCoupon.type} onChange={(e) => setNewCoupon({...newCoupon, type: e.target.value})}>
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="fixed">Fixed Amount (₹)</option>
-                </select>
+                <select value={newCoupon.type} onChange={(e) => setNewCoupon({...newCoupon, type: e.target.value})}><option value="percentage">Percentage (%)</option><option value="fixed">Fixed Amount (₹)</option></select>
                 <input type="date" value={newCoupon.expiryDate} onChange={(e) => setNewCoupon({...newCoupon, expiryDate: e.target.value})} />
                 <input type="number" placeholder="Min Order (₹)" value={newCoupon.minOrder} onChange={(e) => setNewCoupon({...newCoupon, minOrder: e.target.value})} />
                 <input type="number" placeholder="Max Discount (₹)" value={newCoupon.maxDiscount} onChange={(e) => setNewCoupon({...newCoupon, maxDiscount: e.target.value})} />
@@ -699,9 +850,7 @@ const AdminDashboard = () => {
               <h4>Active Coupons</h4>
               <div className="table-responsive">
                 <table className="admin-table">
-                  <thead>
-                    <tr><th>Code</th><th>Discount</th><th>Min Order</th><th>Expiry Date</th><th>Used</th><th>Status</th><th>Actions</th></tr>
-                  </thead>
+                  <thead><tr><th>Code</th><th>Discount</th><th>Min Order</th><th>Expiry Date</th><th>Used</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody>
                     {coupons.length === 0 ? (
                       <tr><td colSpan="7" className="no-data">No coupons created yet</td></tr>
@@ -710,11 +859,12 @@ const AdminDashboard = () => {
                         <tr key={coupon.id} className={!coupon.active ? "inactive-coupon" : ""}>
                           <td><strong>{coupon.code}</strong></td>
                           <td>{coupon.discount}{coupon.type === "percentage" ? "%" : "₹"}</td>
-                          <td>₹{coupon.minOrder || 0}</td>
-                          <td className={isExpired(coupon.expiryDate) ? "expired" : ""}>{coupon.expiryDate}{isExpired(coupon.expiryDate) && " (Expired)"}</td>
-                          <td>{coupon.usedCount} / {coupon.usageLimit || "∞"}</td>
+                          <td>₹{coupon.min_order || 0}</td>
+                          <td className={isExpired(coupon.expiry_date) ? "expired" : ""}>{coupon.expiry_date}{isExpired(coupon.expiry_date) && " (Expired)"}</td>
+                          <td>{coupon.used_count} / {coupon.usage_limit || "∞"}</td>
                           <td><span className={`coupon-status ${coupon.active ? "active" : "inactive"}`}>{coupon.active ? "Active" : "Inactive"}</span></td>
-                          <td><button className="toggle-status-btn" onClick={() => toggleCouponStatus(coupon.id)}>{coupon.active ? "Deactivate" : "Activate"}</button><button className="delete-coupon-btn" onClick={() => deleteCoupon(coupon.id)}>Delete</button></td>
+                          <td><button className="toggle-status-btn" onClick={() => toggleCouponStatus(coupon.id)}>{coupon.active ? "Deactivate" : "Activate"}</button>
+                          <button className="delete-coupon-btn" onClick={() => deleteCoupon(coupon.id)}>Delete</button></td>
                         </tr>
                       ))
                     )}
@@ -739,25 +889,9 @@ const AdminDashboard = () => {
               ) : (
                 allReviews.map((review, idx) => (
                   <div key={idx} className="review-item">
-                    <div className="review-product-info">
-                      <img src={review.productImage || "/assets/jaggery.png"} alt={review.productName} />
-                      <div><h4>{review.productName}</h4><p>Product ID: {review.productId}</p></div>
-                    </div>
-                    <div className="review-content">
-                      <div className="reviewer-info">
-                        <strong>{review.name}</strong>
-                        <div className="review-stars">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</div>
-                        <span className="review-date">{review.date}</span>
-                        {review.verified && <span className="verified-badge">✓ Verified</span>}
-                        {review.spam && <span className="spam-badge">⚠️ Spam</span>}
-                      </div>
-                      <p className="review-comment">{review.comment}</p>
-                    </div>
-                    <div className="review-actions">
-                      {!review.approved && !review.spam && <button className="approve-btn" onClick={() => approveReview(review.id, review.productId)}>✓ Approve</button>}
-                      <button className="spam-btn" onClick={() => markAsSpam(review.id, review.productId)}>🚫 Mark Spam</button>
-                      <button className="delete-btn" onClick={() => deleteReview(review.id, review.productId)}>🗑️ Delete</button>
-                    </div>
+                    <div className="review-product-info"><img src={review.productImage || "/assets/jaggery.png"} alt={review.productName} /><div><h4>{review.productName}</h4><p>Product ID: {review.productId}</p></div></div>
+                    <div className="review-content"><div className="reviewer-info"><strong>{review.name}</strong><div className="review-stars">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</div><span className="review-date">{review.date}</span>{review.verified && <span className="verified-badge">✓ Verified</span>}{review.spam && <span className="spam-badge">⚠️ Spam</span>}</div><p className="review-comment">{review.comment}</p></div>
+                    <div className="review-actions">{!review.approved && !review.spam && <button className="approve-btn" onClick={() => approveReview(review.id, review.productId)}>✓ Approve</button>}<button className="spam-btn" onClick={() => markAsSpam(review.id, review.productId)}>🚫 Mark Spam</button><button className="delete-btn" onClick={() => deleteReview(review.id, review.productId)}>🗑️ Delete</button></div>
                   </div>
                 ))
               )}
@@ -770,11 +904,7 @@ const AdminDashboard = () => {
             <h3>Registered Customers ({users.length})</h3>
             <div className="table-responsive">
               <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Registered Date</th><th>Orders</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Registered Date</th><th>Orders</th></tr></thead>
                 <tbody>
                   {users.length === 0 ? (
                     <tr><td colSpan="6" className="no-data">No customers registered yet</td></tr>
@@ -800,42 +930,12 @@ const AdminDashboard = () => {
       {showOrderModal && selectedOrder && (
         <div className="modal-overlay" onClick={() => setShowOrderModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Order Details - {selectedOrder.id}</h3>
-              <button className="modal-close" onClick={() => setShowOrderModal(false)}>×</button>
-            </div>
+            <div className="modal-header"><h3>Order Details - {selectedOrder.id}</h3><button className="modal-close" onClick={() => setShowOrderModal(false)}>×</button></div>
             <div className="modal-body">
-              <div className="order-info-section"><h4>Customer Information</h4>
-                <div className="order-info-row"><strong>Name:</strong> {selectedOrder.customer}</div>
-                <div className="order-info-row"><strong>Email:</strong> {selectedOrder.email}</div>
-                <div className="order-info-row"><strong>Phone:</strong> {selectedOrder.phone || "Not provided"}</div>
-                <div className="order-info-row"><strong>Address:</strong> {selectedOrder.address}</div>
-              </div>
-              <div className="order-info-section"><h4>Order Information</h4>
-                <div className="order-info-row"><strong>Order Date:</strong> {selectedOrder.orderDate}</div>
-                <div className="order-info-row"><strong>Payment Method:</strong> {selectedOrder.paymentMethod}</div>
-                <div className="order-info-row"><strong>Payment Status:</strong> <span className={`payment-badge ${selectedOrder.paymentStatus === "paid" ? "paid" : "pending"}`}>{selectedOrder.paymentStatus || "pending"}</span></div>
-                <div className="order-info-row"><strong>Order Status:</strong> <span className={`status-badge status-${selectedOrder.status}`}>{selectedOrder.status}</span></div>
-              </div>
-              <div className="order-info-section"><h4>Products Ordered</h4>
-                <div className="order-products-table">
-                  <div className="order-products-header"><span>Product</span><span>Quantity</span><span>Price</span><span>Total</span></div>
-                  {selectedOrder.products && selectedOrder.products.map((p, idx) => (
-                    <div key={idx} className="order-products-row">
-                      <span className="product-name-cell">{p.name}</span>
-                      <span className="product-qty-cell">x{p.quantity}</span>
-                      <span className="product-price-cell">₹{p.price}</span>
-                      <span className="product-total-cell">₹{p.price * p.quantity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="order-total-section">
-                <div className="total-row"><span>Subtotal:</span><span>₹{selectedOrder.subtotal}</span></div>
-                <div className="total-row"><span>Shipping:</span><span>₹{selectedOrder.shipping}</span></div>
-                {selectedOrder.discount > 0 && <div className="total-row discount"><span>Discount:</span><span>-₹{selectedOrder.discount}</span></div>}
-                <div className="total-row grand-total"><span>Grand Total:</span><span>₹{selectedOrder.total}</span></div>
-              </div>
+              <div className="order-info-section"><h4>Customer Information</h4><div className="order-info-row"><strong>Name:</strong> {selectedOrder.customer}</div><div className="order-info-row"><strong>Email:</strong> {selectedOrder.email}</div><div className="order-info-row"><strong>Phone:</strong> {selectedOrder.phone || "Not provided"}</div><div className="order-info-row"><strong>Address:</strong> {selectedOrder.address}</div></div>
+              <div className="order-info-section"><h4>Order Information</h4><div className="order-info-row"><strong>Order Date:</strong> {selectedOrder.orderDate}</div><div className="order-info-row"><strong>Payment Method:</strong> {selectedOrder.paymentMethod}</div><div className="order-info-row"><strong>Payment Status:</strong> <span className={`payment-badge ${selectedOrder.paymentStatus === "paid" ? "paid" : "pending"}`}>{selectedOrder.paymentStatus || "pending"}</span></div><div className="order-info-row"><strong>Order Status:</strong> <span className={`status-badge status-${selectedOrder.status}`}>{selectedOrder.status}</span></div></div>
+              <div className="order-info-section"><h4>Products Ordered</h4><div className="order-products-table"><div className="order-products-header"><span>Product</span><span>Quantity</span><span>Price</span><span>Total</span></div>{selectedOrder.products && selectedOrder.products.map((p, idx) => (<div key={idx} className="order-products-row"><span className="product-name-cell">{p.name}</span><span className="product-qty-cell">x{p.quantity}</span><span className="product-price-cell">₹{p.price}</span><span className="product-total-cell">₹{p.price * p.quantity}</span></div>))}</div></div>
+              <div className="order-total-section"><div className="total-row"><span>Subtotal:</span><span>₹{selectedOrder.subtotal}</span></div><div className="total-row"><span>Shipping:</span><span>₹{selectedOrder.shipping}</span></div>{selectedOrder.discount > 0 && <div className="total-row discount"><span>Discount:</span><span>-₹{selectedOrder.discount}</span></div>}<div className="total-row grand-total"><span>Grand Total:</span><span>₹{selectedOrder.total}</span></div></div>
             </div>
           </div>
         </div>

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
+import { supabase } from '../supabaseClient';
+import SuccessNotification from "./SuccessNotification";
 import "./ProductDetails.css";
 
 const ProductDetails = () => {
@@ -16,6 +18,8 @@ const ProductDetails = () => {
   const [activeTab, setActiveTab] = useState("description");
   const [selectedImage, setSelectedImage] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState("");
 
   const productImages = [
     "/assets/jaggery.png",
@@ -77,55 +81,116 @@ const ProductDetails = () => {
     setLoading(false);
   };
 
-  const loadReviews = () => {
-    const savedReviews = localStorage.getItem(`reviews_${id}`);
-    if (savedReviews) {
-      setReviews(JSON.parse(savedReviews));
-    } else {
-      const demoReviews = [
-        {
-          id: 1,
-          name: "Rahul Sharma",
-          rating: 5,
-          comment: "Excellent quality! Very happy with the purchase. The taste is authentic and natural.",
-          date: "2024-05-15",
-          verified: true
-        },
-        {
-          id: 2,
-          name: "Priya Patel",
-          rating: 4,
-          comment: "Good product, packaging could be better. But overall satisfied.",
-          date: "2024-05-10",
-          verified: true
+  const loadReviews = async () => {
+    try {
+      const { data: supabaseReviews, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_id', parseInt(id))
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedReviews = localStorage.getItem(`reviews_${id}`);
+        if (savedReviews) {
+          setReviews(JSON.parse(savedReviews));
+        } else {
+          const demoReviews = [
+            {
+              id: 1,
+              name: "Rahul Sharma",
+              rating: 5,
+              comment: "Excellent quality! Very happy with the purchase. The taste is authentic and natural.",
+              date: "2024-05-15",
+              verified: true
+            },
+            {
+              id: 2,
+              name: "Priya Patel",
+              rating: 4,
+              comment: "Good product, packaging could be better. But overall satisfied.",
+              date: "2024-05-10",
+              verified: true
+            }
+          ];
+          setReviews(demoReviews);
+          localStorage.setItem(`reviews_${id}`, JSON.stringify(demoReviews));
         }
-      ];
-      setReviews(demoReviews);
-      localStorage.setItem(`reviews_${id}`, JSON.stringify(demoReviews));
+      } else if (supabaseReviews && supabaseReviews.length > 0) {
+        setReviews(supabaseReviews);
+        localStorage.setItem(`reviews_${id}`, JSON.stringify(supabaseReviews));
+      } else {
+        const savedReviews = localStorage.getItem(`reviews_${id}`);
+        if (savedReviews) {
+          setReviews(JSON.parse(savedReviews));
+        } else {
+          const demoReviews = [
+            {
+              id: 1,
+              name: "Rahul Sharma",
+              rating: 5,
+              comment: "Excellent quality! Very happy with the purchase.",
+              date: "2024-05-15",
+              verified: true
+            },
+            {
+              id: 2,
+              name: "Priya Patel",
+              rating: 4,
+              comment: "Good product, packaging could be better.",
+              date: "2024-05-10",
+              verified: true
+            }
+          ];
+          setReviews(demoReviews);
+          localStorage.setItem(`reviews_${id}`, JSON.stringify(demoReviews));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading reviews:', err);
     }
   };
 
-  const submitReview = (e) => {
+  const submitReview = async (e) => {
     e.preventDefault();
     if (!newReview.name || !newReview.comment) {
-      alert("Please fill all fields");
+      setNotificationMessage("Please fill all fields");
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
       return;
     }
 
     const review = {
       id: Date.now(),
+      product_id: parseInt(id),
+      product_name: product?.name,
       name: newReview.name,
       rating: newReview.rating,
       comment: newReview.comment,
       date: new Date().toISOString().split('T')[0],
-      verified: false
+      verified: false,
+      approved: false,
+      spam: false,
+      created_at: new Date().toISOString()
     };
+
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .insert([review]);
+      if (error) console.error('Supabase error:', error);
+    } catch (err) {
+      console.error('Error saving to Supabase:', err);
+    }
 
     const updatedReviews = [review, ...reviews];
     setReviews(updatedReviews);
     localStorage.setItem(`reviews_${id}`, JSON.stringify(updatedReviews));
     setNewReview({ rating: 5, comment: "", name: "" });
-    alert("Thank you! Your review has been submitted.");
+    
+    setNotificationMessage("Thank you! Your review has been submitted.");
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
   };
 
   const addToCart = () => {
@@ -408,6 +473,14 @@ const ProductDetails = () => {
       </div>
       <Footer />
       <WhatsApp />
+      
+      {showNotification && (
+        <SuccessNotification 
+          message={notificationMessage} 
+          onClose={() => setShowNotification(false)}
+        />
+      )}
+      
       <style>{`
         .cart-toast {
           position: fixed;

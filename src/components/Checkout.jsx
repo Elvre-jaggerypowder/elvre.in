@@ -18,6 +18,11 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [step, setStep] = useState(1);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [showOtpInput, setShowOtpInput] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -65,38 +70,68 @@ const Checkout = () => {
     setTotal(subtotalAmount + shippingCharge);
   };
 
-  const loadSavedAddresses = () => {
+  const loadSavedAddresses = async () => {
     try {
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
       if (currentUser && currentUser.email) {
-        const addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
+        const { data: supabaseAddresses, error } = await supabase
+          .from('addresses')
+          .select('*')
+          .eq('user_email', currentUser.email)
+          .order('saved_at', { ascending: false });
         
-        const uniqueAddresses = addresses.filter((addr, index, self) =>
-          index === self.findIndex((a) => 
-            a.fullName === addr.fullName &&
-            a.phone === addr.phone &&
-            a.address === addr.address &&
-            a.city === addr.city &&
-            a.state === addr.state &&
-            a.pincode === addr.pincode
-          )
-        );
-        setSavedAddresses(uniqueAddresses);
-        
-        if (uniqueAddresses.length > 0) {
-          const lastAddress = uniqueAddresses[uniqueAddresses.length - 1];
-          setSelectedAddressId(lastAddress.id);
-          setFormData({
-            fullName: lastAddress.fullName,
-            email: lastAddress.email,
-            phone: lastAddress.phone,
-            address: lastAddress.address,
-            city: lastAddress.city,
-            state: lastAddress.state,
-            pincode: lastAddress.pincode,
-            paymentMethod: "cod"
-          });
-          setShowNewAddressForm(false);
+        if (error) {
+          console.error('Supabase error:', error);
+          const addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
+          setSavedAddresses(addresses);
+          if (addresses.length > 0) {
+            const lastAddress = addresses[addresses.length - 1];
+            setSelectedAddressId(lastAddress.id);
+            setFormData(prev => ({
+              ...prev,
+              fullName: lastAddress.full_name,
+              email: lastAddress.email,
+              phone: lastAddress.phone,
+              address: lastAddress.address,
+              city: lastAddress.city,
+              state: lastAddress.state,
+              pincode: lastAddress.pincode
+            }));
+            setShowNewAddressForm(false);
+          } else {
+            setShowNewAddressForm(true);
+          }
+        } else if (supabaseAddresses && supabaseAddresses.length > 0) {
+          const uniqueAddresses = supabaseAddresses.filter((addr, index, self) =>
+            index === self.findIndex((a) => 
+              a.full_name === addr.full_name &&
+              a.phone === addr.phone &&
+              a.address === addr.address &&
+              a.city === addr.city &&
+              a.state === addr.state &&
+              a.pincode === addr.pincode
+            )
+          );
+          setSavedAddresses(uniqueAddresses);
+          localStorage.setItem(`addresses_${currentUser.email}`, JSON.stringify(uniqueAddresses));
+          
+          if (uniqueAddresses.length > 0) {
+            const lastAddress = uniqueAddresses[uniqueAddresses.length - 1];
+            setSelectedAddressId(lastAddress.id);
+            setFormData(prev => ({
+              ...prev,
+              fullName: lastAddress.full_name,
+              email: lastAddress.email,
+              phone: lastAddress.phone,
+              address: lastAddress.address,
+              city: lastAddress.city,
+              state: lastAddress.state,
+              pincode: lastAddress.pincode
+            }));
+            setShowNewAddressForm(false);
+          } else {
+            setShowNewAddressForm(true);
+          }
         } else {
           setShowNewAddressForm(true);
         }
@@ -110,13 +145,13 @@ const Checkout = () => {
     setLoading(false);
   };
 
-  const saveAddress = (addressData) => {
+  const saveAddress = async (addressData) => {
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     if (currentUser && currentUser.email) {
       let addresses = JSON.parse(localStorage.getItem(`addresses_${currentUser.email}`) || "[]");
       
       const isDuplicate = addresses.some(addr => 
-        addr.fullName === addressData.fullName &&
+        addr.full_name === addressData.fullName &&
         addr.phone === addressData.phone &&
         addr.address === addressData.address &&
         addr.city === addressData.city &&
@@ -127,16 +162,33 @@ const Checkout = () => {
       if (!isDuplicate) {
         const newAddress = {
           id: Date.now(),
-          ...addressData,
-          savedAt: new Date().toISOString()
+          user_email: currentUser.email,
+          full_name: addressData.fullName,
+          email: addressData.email,
+          phone: addressData.phone,
+          address: addressData.address,
+          city: addressData.city,
+          state: addressData.state,
+          pincode: addressData.pincode,
+          saved_at: new Date().toISOString()
         };
+        
+        try {
+          const { error } = await supabase
+            .from('addresses')
+            .insert([newAddress]);
+          if (error) console.error('Supabase error:', error);
+        } catch (err) {
+          console.error('Error saving to Supabase:', err);
+        }
+        
         addresses.push(newAddress);
         localStorage.setItem(`addresses_${currentUser.email}`, JSON.stringify(addresses));
         setSavedAddresses(addresses);
         setSelectedAddressId(newAddress.id);
       } else {
         const existingAddress = addresses.find(addr => 
-          addr.fullName === addressData.fullName &&
+          addr.full_name === addressData.fullName &&
           addr.phone === addressData.phone &&
           addr.address === addressData.address &&
           addr.city === addressData.city &&
@@ -150,12 +202,45 @@ const Checkout = () => {
     }
   };
 
+  // ✅ Phone Number Verification Functions
+  const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  const sendOTP = () => {
+    const phone = formData.phone;
+    if (!phone || phone.length < 10) {
+      alert("Please enter a valid 10-digit phone number");
+      return;
+    }
+    
+    // In real scenario, you would send SMS via API
+    // For demo, we'll show OTP in alert
+    const otp = generateOTP();
+    setGeneratedOtp(otp);
+    setOtpSent(true);
+    setShowOtpInput(true);
+    
+    // Simulate sending OTP via SMS
+    alert(`Demo: Your OTP is ${otp}. (In production, this will be sent via SMS)`);
+  };
+
+  const verifyOTP = () => {
+    if (otpCode === generatedOtp) {
+      setPhoneVerified(true);
+      setShowOtpInput(false);
+      alert("Phone number verified successfully!");
+    } else {
+      alert("Invalid OTP. Please try again.");
+    }
+  };
+
   const handleSelectAddress = (addressId) => {
     const address = savedAddresses.find(a => a.id === parseInt(addressId));
     if (address) {
       setSelectedAddressId(addressId);
       setFormData({
-        fullName: address.fullName,
+        fullName: address.full_name,
         email: address.email,
         phone: address.phone,
         address: address.address,
@@ -165,11 +250,21 @@ const Checkout = () => {
         paymentMethod: formData.paymentMethod
       });
       setShowNewAddressForm(false);
+      // Reset phone verification when address changes
+      setPhoneVerified(false);
+      setOtpSent(false);
+      setShowOtpInput(false);
     }
   };
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Reset verification when phone changes
+    if (e.target.name === "phone") {
+      setPhoneVerified(false);
+      setOtpSent(false);
+      setShowOtpInput(false);
+    }
   };
 
   const handleUseNewAddress = () => {
@@ -185,6 +280,9 @@ const Checkout = () => {
       pincode: "",
       paymentMethod: formData.paymentMethod
     });
+    setPhoneVerified(false);
+    setOtpSent(false);
+    setShowOtpInput(false);
   };
 
   const handleContinueToPayment = () => {
@@ -194,6 +292,10 @@ const Checkout = () => {
     }
     
     if (showNewAddressForm) {
+      if (!phoneVerified) {
+        alert("Please verify your phone number first");
+        return;
+      }
       if (formData.fullName && formData.address && formData.city && formData.state && formData.pincode && formData.phone) {
         saveAddress(formData);
         setStep(2);
@@ -221,6 +323,10 @@ const Checkout = () => {
   e.preventDefault();
   
   if (showNewAddressForm && !selectedAddressId) {
+    if (!phoneVerified) {
+      alert("Please verify your phone number first");
+      return;
+    }
     saveAddress(formData);
   }
   
@@ -235,7 +341,31 @@ const Checkout = () => {
   const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const fullDateTime = `${orderDate} at ${orderTime}`;
   
-  // Update product stock
+  // ✅ UPDATE PRODUCT STOCK IN SUPABASE
+  for (const item of cart) {
+    const orderedQty = item.quantity || 1;
+    const currentStock = item.stock;
+    const newStock = currentStock - orderedQty;
+    
+    if (newStock < 0) {
+      alert(`Insufficient stock for ${item.name}. Only ${currentStock} left.`);
+      return;
+    }
+    
+    // Update in Supabase
+    const { error: stockError } = await supabase
+      .from('products')
+      .update({ stock: newStock })
+      .eq('id', item.id);
+    
+    if (stockError) {
+      console.error('Stock update error:', stockError);
+    } else {
+      console.log(`Stock updated for ${item.name}: ${currentStock} → ${newStock}`);
+    }
+  }
+  
+  // ✅ Update localStorage products as well
   const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
   const updatedProducts = allProducts.map(product => {
     const orderedItem = cart.find(item => item.id === product.id);
@@ -275,7 +405,7 @@ const Checkout = () => {
     canCancel: true
   };
   
-  // ✅ Save to Supabase
+  // Save order to Supabase
   try {
     const { error: supabaseError } = await supabase
       .from('orders')
@@ -299,18 +429,12 @@ const Checkout = () => {
           created_at: new Date().toISOString()
         }
       ]);
-
-    if (supabaseError) {
-      console.error('Supabase order save error:', supabaseError);
-      alert("Order placed but not saved to cloud. Check console for error.");
-    } else {
-      console.log('Order saved to Supabase successfully!');
-    }
+    if (supabaseError) console.error('Supabase order save error:', supabaseError);
   } catch (err) {
     console.error('Error saving to Supabase:', err);
   }
   
-  // ✅ Save to localStorage as backup
+  // Save to localStorage backup
   const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
   existingOrders.unshift(newOrder);
   localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
@@ -383,7 +507,7 @@ const Checkout = () => {
                           <div key={addr.id} className={`address-card ${selectedAddressId === addr.id ? "selected" : ""}`} onClick={() => handleSelectAddress(addr.id)}>
                             <div className="address-radio"><input type="radio" name="savedAddress" checked={selectedAddressId === addr.id} onChange={() => handleSelectAddress(addr.id)} /></div>
                             <div className="address-details">
-                              <p><strong>{addr.fullName}</strong></p>
+                              <p><strong>{addr.full_name}</strong></p>
                               <p>{addr.address}, {addr.city}, {addr.state} - {addr.pincode}</p>
                               <p>📞 {addr.phone} | ✉️ {addr.email}</p>
                             </div>
@@ -401,7 +525,24 @@ const Checkout = () => {
                         <div className="form-group"><label>Full Name *</label><input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>
                         <div className="form-group"><label>Email *</label><input type="email" name="email" value={formData.email} onChange={handleInputChange} required /></div>
                       </div>
-                      <div className="form-group"><label>Phone Number *</label><input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} required /></div>
+                      <div className="form-group">
+                        <label>Phone Number *</label>
+                        <div className="phone-verification-group">
+                          <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="10-digit mobile number" required />
+                          {!phoneVerified && formData.phone && formData.phone.length >= 10 && !otpSent && (
+                            <button type="button" className="send-otp-btn" onClick={sendOTP}>Send OTP</button>
+                          )}
+                        </div>
+                        {showOtpInput && (
+                          <div className="otp-verification-group">
+                            <input type="text" placeholder="Enter 6-digit OTP" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} />
+                            <button type="button" className="verify-otp-btn" onClick={verifyOTP}>Verify OTP</button>
+                          </div>
+                        )}
+                        {phoneVerified && (
+                          <div className="verified-badge">✓ Phone number verified</div>
+                        )}
+                      </div>
                       <div className="form-group"><label>Address *</label><textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" required /></div>
                       <div className="form-row">
                         <div className="form-group"><label>City *</label><input type="text" name="city" value={formData.city} onChange={handleInputChange} required /></div>
@@ -412,7 +553,9 @@ const Checkout = () => {
                     </div>
                   )}
                   
-                  <button className="continue-btn" onClick={handleContinueToPayment}>Continue to Payment →</button>
+                  <button className="continue-btn" onClick={handleContinueToPayment}>
+                    Continue to Payment →
+                  </button>
                 </>
               ) : (
                 <>

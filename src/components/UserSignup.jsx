@@ -36,10 +36,29 @@ const UserSignup = () => {
       return;
     }
     
+    // ✅ Email format validation
+    const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    
+    // ✅ Check for fake/disposable email domains
+    const fakeDomains = [
+      'tempmail.com', '10minutemail.com', 'guerrillamail.com', 
+      'mailinator.com', 'yopmail.com', 'throwawaymail.com',
+      'fakeinbox.com', 'temp-mail.org', 'mailnator.com'
+    ];
+    const emailDomain = email.split('@')[1];
+    if (fakeDomains.includes(emailDomain)) {
+      setError("Please use a real email address. Temporary emails are not allowed.");
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      // ✅ Check if email already exists in Supabase
+      // Check if email already exists
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('email')
@@ -52,7 +71,7 @@ const UserSignup = () => {
         return;
       }
       
-      // ✅ Save to Supabase
+      // Save to Supabase
       const { data: supabaseData, error: supabaseError } = await supabase
         .from('users')
         .insert([
@@ -78,7 +97,7 @@ const UserSignup = () => {
 
       console.log('User saved to Supabase:', supabaseData);
       
-      // ✅ Also save to localStorage for backup
+      // Save to localStorage for backup
       const users = JSON.parse(localStorage.getItem("users") || "[]");
       const newUser = {
         id: Date.now(),
@@ -137,6 +156,7 @@ const UserSignup = () => {
                 required
                 disabled={loading}
               />
+              <small className="form-hint">We'll never share your email with anyone else.</small>
             </div>
             
             <div className="form-group">
