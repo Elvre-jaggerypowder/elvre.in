@@ -72,6 +72,24 @@ const AdminDashboard = () => {
     };
   }, []);
 
+  // Real-time subscription for new orders
+  useEffect(() => {
+    const subscription = supabase
+      .channel('orders-channel')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'orders' }, 
+        (payload) => {
+          console.log('New order added in real-time!', payload.new);
+          setOrders(prev => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const loadProducts = () => {
     const savedProducts = localStorage.getItem("elvreProducts");
     if (savedProducts) {
@@ -121,63 +139,56 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
-  const loadOrders = () => {
-    const savedOrders = localStorage.getItem("elvreOrders");
-    if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
-    } else {
-      const defaultOrders = [
-        {
-          id: "ORD001",
-          customer: "Rahul Sharma",
-          email: "rahul@example.com",
-          phone: "9876543210",
-          address: "Mumbai, Maharashtra",
-          products: [{ id: 1, name: "ELVRE Organic Jaggery Powder", quantity: 2, price: 149, image: "/assets/jaggery.png" }],
-          subtotal: 298,
-          shipping: 40,
-          discount: 0,
-          total: 338,
-          status: "delivered",
-          paymentMethod: "Cash on Delivery",
-          paymentStatus: "paid",
-          orderDate: "2024-05-15"
-        },
-        {
-          id: "ORD002",
-          customer: "Priya Patel",
-          email: "priya@example.com",
-          phone: "9876543211",
-          address: "Delhi, NCR",
-          products: [{ id: 2, name: "ELVRE Palm Jaggery", quantity: 1, price: 199, image: "/assets/productpacking.png" }],
-          subtotal: 199,
-          shipping: 40,
-          discount: 0,
-          total: 239,
-          status: "processing",
-          paymentMethod: "Cash on Delivery",
-          paymentStatus: "pending",
-          orderDate: "2024-05-20"
-        },
-        {
-          id: "ORD003",
-          customer: "Amit Kumar",
-          email: "amit@example.com",
-          phone: "9876543212",
-          address: "Bangalore, Karnataka",
-          products: [{ id: 3, name: "ELVRE Gift Pack", quantity: 1, price: 299, image: "/assets/bowl.png" }],
-          subtotal: 299,
-          shipping: 0,
-          discount: 0,
-          total: 299,
-          status: "shipped",
-          paymentMethod: "Cash on Delivery",
-          paymentStatus: "pending",
-          orderDate: "2024-05-18"
+  const loadOrders = async () => {
+    try {
+      // ✅ First try to get orders from Supabase
+      const { data: supabaseOrders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        // Fallback to localStorage
+        const savedOrders = localStorage.getItem("elvreOrders");
+        if (savedOrders) {
+          setOrders(JSON.parse(savedOrders));
         }
-      ];
-      setOrders(defaultOrders);
-      localStorage.setItem("elvreOrders", JSON.stringify(defaultOrders));
+      } else if (supabaseOrders && supabaseOrders.length > 0) {
+        console.log('Orders from Supabase:', supabaseOrders);
+        // Convert Supabase format to match app format
+        const formattedOrders = supabaseOrders.map(order => ({
+          id: order.id,
+          customer: order.customer,
+          email: order.email,
+          phone: order.phone,
+          address: order.address,
+          products: order.products,
+          subtotal: order.subtotal,
+          shipping: order.shipping,
+          discount: order.discount || 0,
+          total: order.total,
+          status: order.status,
+          paymentMethod: order.payment_method,
+          paymentStatus: order.payment_status || 'pending',
+          orderDate: order.order_date,
+          orderTime: order.order_time
+        }));
+        setOrders(formattedOrders);
+        localStorage.setItem("elvreOrders", JSON.stringify(formattedOrders));
+      } else {
+        // Fallback to localStorage
+        const savedOrders = localStorage.getItem("elvreOrders");
+        if (savedOrders) {
+          setOrders(JSON.parse(savedOrders));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading orders:', err);
+      const savedOrders = localStorage.getItem("elvreOrders");
+      if (savedOrders) {
+        setOrders(JSON.parse(savedOrders));
+      }
     }
   };
 
@@ -442,7 +453,7 @@ const AdminDashboard = () => {
     return new Date(expiryDate) < new Date();
   };
 
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(order => order.status === "pending" || order.status === "processing").length;
   const totalProducts = products.length;
@@ -502,15 +513,7 @@ const AdminDashboard = () => {
               <div className="table-responsive">
                 <table className="admin-table">
                   <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Customer</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Payment</th>
-                      <th>Date</th>
-                      <th>Action</th>
-                    </tr>
+                    <tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Payment</th><th>Date</th><th>Action</th></tr>
                   </thead>
                   <tbody>
                     {recentOrders.map(order => (
@@ -584,9 +587,7 @@ const AdminDashboard = () => {
               <div className="table-responsive">
                 <table className="admin-table">
                   <thead>
-                    <tr>
-                      <th>Image</th><th>Product</th><th>Price</th><th>Stock</th><th>Sold</th><th>Revenue</th><th>Actions</th>
-                    </tr>
+                    <tr><th>Image</th><th>Product</th><th>Price</th><th>Stock</th><th>Sold</th><th>Revenue</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
                     {products.map(product => (
@@ -625,18 +626,22 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map(order => (
-                    <tr key={order.id}>
-                      <td><strong>{order.id}</strong></td>
-                      <td><div><strong>{order.customer}</strong></div><div className="customer-email">{order.email}</div></td>
-                      <td><div className="order-products-list">{order.products && order.products.map((p, idx) => (<div key={idx} className="order-product-item-compact"><span className="product-name">{p.name}</span><span className="product-qty">x{p.quantity}</span><span className="product-price">₹{p.price * p.quantity}</span></div>))}</div></td>
-                      <td><strong>₹{order.total}</strong></td>
-                      <td><select value={order.status} onChange={(e) => updateOrderStatus(order.id, e.target.value)} className={`status-select status-${order.status}`}><option value="pending">Pending</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></td>
-                      <td><select value={order.paymentStatus || "pending"} onChange={(e) => updatePaymentStatus(order.id, e.target.value)} className="payment-select"><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></td>
-                      <td>{order.orderDate}</td>
-                      <td><button className="view-btn" onClick={() => { setSelectedOrder(order); setShowOrderModal(true); }}>View Details</button></td>
-                    </tr>
-                  ))}
+                  {orders.length === 0 ? (
+                    <tr><td colSpan="8" className="no-data">No orders yet</td></tr>
+                  ) : (
+                    orders.map(order => (
+                      <tr key={order.id}>
+                        <td><strong>{order.id}</strong></td>
+                        <td><div><strong>{order.customer}</strong></div><div className="customer-email">{order.email}</div></td>
+                        <td><div className="order-products-list">{order.products && order.products.map((p, idx) => (<div key={idx} className="order-product-item-compact"><span className="product-name">{p.name}</span><span className="product-qty">x{p.quantity}</span><span className="product-price">₹{p.price * p.quantity}</span></div>))}</div></td>
+                        <td><strong>₹{order.total}</strong></td>
+                        <td><select value={order.status} onChange={(e) => updateOrderStatus(order.id, e.target.value)} className={`status-select status-${order.status}`}><option value="pending">Pending</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></td>
+                        <td><select value={order.paymentStatus || "pending"} onChange={(e) => updatePaymentStatus(order.id, e.target.value)} className="payment-select"><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></td>
+                        <td>{order.orderDate}</td>
+                        <td><button className="view-btn" onClick={() => { setSelectedOrder(order); setShowOrderModal(true); }}>View Details</button></td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -647,17 +652,13 @@ const AdminDashboard = () => {
           <div className="admin-payments-section">
             <h3>Payment Management</h3>
             <div className="payment-stats">
-              <div className="payment-stat-card"><div className="payment-stat-icon">💰</div><div><h4>Total Collected</h4><p>₹{orders.filter(o => o.paymentStatus === "paid").reduce((s, o) => s + o.total, 0).toLocaleString()}</p></div></div>
+              <div className="payment-stat-card"><div className="payment-stat-icon">💰</div><div><h4>Total Collected</h4><p>₹{orders.filter(o => o.paymentStatus === "paid").reduce((s, o) => s + (o.total || 0), 0).toLocaleString()}</p></div></div>
               <div className="payment-stat-card"><div className="payment-stat-icon">⏳</div><div><h4>Pending Payments</h4><p>{orders.filter(o => o.paymentStatus === "pending").length} orders</p></div></div>
               <div className="payment-stat-card"><div className="payment-stat-icon">🔄</div><div><h4>Refund Requests</h4><p>{orders.filter(o => o.status === "cancelled" && o.paymentStatus !== "refunded").length} requests</p></div></div>
             </div>
             <div className="table-responsive">
               <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Order ID</th><th>Customer</th><th>Amount</th><th>Payment Method</th><th>Payment Status</th><th>Action</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Payment Method</th><th>Payment Status</th><th>Action</th></tr></thead>
                 <tbody>
                   {orders.filter(o => o.paymentStatus !== "paid").map(order => (
                     <tr key={order.id}>
@@ -699,9 +700,7 @@ const AdminDashboard = () => {
               <div className="table-responsive">
                 <table className="admin-table">
                   <thead>
-                    <tr>
-                      <th>Code</th><th>Discount</th><th>Min Order</th><th>Expiry Date</th><th>Used</th><th>Status</th><th>Actions</th>
-                    </tr>
+                    <tr><th>Code</th><th>Discount</th><th>Min Order</th><th>Expiry Date</th><th>Used</th><th>Status</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
                     {coupons.length === 0 ? (

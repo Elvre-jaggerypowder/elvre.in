@@ -18,11 +18,9 @@ const UserSignup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Clear previous messages
     setError("");
     setSuccess("");
     
-    // Validation
     if (!name || !email || !password) {
       setError("Please fill all fields");
       return;
@@ -41,7 +39,20 @@ const UserSignup = () => {
     setLoading(true);
     
     try {
-      // ✅ Step 1: Save to Supabase
+      // ✅ Check if email already exists in Supabase
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email)
+        .single();
+      
+      if (existingUser) {
+        setError("Email already registered");
+        setLoading(false);
+        return;
+      }
+      
+      // ✅ Save to Supabase
       const { data: supabaseData, error: supabaseError } = await supabase
         .from('users')
         .insert([
@@ -56,8 +67,6 @@ const UserSignup = () => {
 
       if (supabaseError) {
         console.error('Supabase error:', supabaseError);
-        
-        // Check if email already exists in Supabase
         if (supabaseError.code === '23505') {
           setError("Email already registered");
         } else {
@@ -69,17 +78,8 @@ const UserSignup = () => {
 
       console.log('User saved to Supabase:', supabaseData);
       
-      // ✅ Step 2: Also save to localStorage for backup
+      // ✅ Also save to localStorage for backup
       const users = JSON.parse(localStorage.getItem("users") || "[]");
-      
-      // Check if email already exists in localStorage
-      if (users.find(u => u.email === email)) {
-        setError("Email already registered");
-        setLoading(false);
-        return;
-      }
-      
-      // Create new user
       const newUser = {
         id: Date.now(),
         name,
@@ -87,7 +87,6 @@ const UserSignup = () => {
         password,
         createdAt: new Date().toISOString()
       };
-      
       users.push(newUser);
       localStorage.setItem("users", JSON.stringify(users));
       
