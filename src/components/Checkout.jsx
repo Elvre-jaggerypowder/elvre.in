@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient';
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
@@ -216,76 +217,115 @@ const Checkout = () => {
     setShowNewAddressForm(false);
   };
 
-  const placeOrder = (e) => {
-    e.preventDefault();
-    
-    if (showNewAddressForm && !selectedAddressId) {
-      saveAddress(formData);
+  const placeOrder = async (e) => {
+  e.preventDefault();
+  
+  if (showNewAddressForm && !selectedAddressId) {
+    saveAddress(formData);
+  }
+  
+  if (!formData.fullName || !formData.email || !formData.phone || !formData.address) {
+    alert("Please fill all required fields");
+    return;
+  }
+  
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const now = new Date();
+  const orderDate = now.toLocaleDateString();
+  const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const fullDateTime = `${orderDate} at ${orderTime}`;
+  
+  // Update product stock
+  const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
+  const updatedProducts = allProducts.map(product => {
+    const orderedItem = cart.find(item => item.id === product.id);
+    if (orderedItem) {
+      const newStock = product.stock - (orderedItem.quantity || 1);
+      return { ...product, stock: Math.max(0, newStock) };
     }
-    
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.address) {
-      alert("Please fill all required fields");
-      return;
-    }
-    
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    const now = new Date();
-    const orderDate = now.toLocaleDateString();
-    const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const fullDateTime = `${orderDate} at ${orderTime}`;
-    
-    const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
-    const updatedProducts = allProducts.map(product => {
-      const orderedItem = cart.find(item => item.id === product.id);
-      if (orderedItem) {
-        const newStock = product.stock - (orderedItem.quantity || 1);
-        return { ...product, stock: Math.max(0, newStock) };
-      }
-      return product;
-    });
-    localStorage.setItem("elvreProducts", JSON.stringify(updatedProducts));
-    window.dispatchEvent(new Event("productsUpdated"));
-    
-    const newOrder = {
-      id: "ORD" + Date.now(),
-      customer: formData.fullName,
-      email: currentUser?.email || formData.email,
-      phone: formData.phone,
-      address: `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`,
-      products: cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0,
-        quantity: item.quantity || 1,
-        image: item.image
-      })),
-      subtotal: subtotal,
-      shipping: shipping,
-      total: total,
-      paymentMethod: formData.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment",
-      status: "pending",
-      orderDate: orderDate,
-      orderTime: orderTime,
-      fullDateTime: fullDateTime,
-      timestamp: now.getTime(),
-      canCancel: true
-    };
-    
-    const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
-    existingOrders.unshift(newOrder);
-    localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
-    
-    localStorage.removeItem("cart");
-    setCart([]);
-    window.dispatchEvent(new Event("storage"));
-    
-    setOrderId(newOrder.id);
-    setOrderPlaced(true);
-    
-    setTimeout(() => {
-      navigate(`/order-tracking/${newOrder.id}`);
-    }, 3000);
+    return product;
+  });
+  localStorage.setItem("elvreProducts", JSON.stringify(updatedProducts));
+  window.dispatchEvent(new Event("productsUpdated"));
+  
+  const newOrder = {
+    id: "ORD" + Date.now(),
+    customer: formData.fullName,
+    email: currentUser?.email || formData.email,
+    phone: formData.phone,
+    address: `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`,
+    products: cart.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0,
+      quantity: item.quantity || 1,
+      image: item.image
+    })),
+    subtotal: subtotal,
+    shipping: shipping,
+    discount: 0,
+    total: total,
+    paymentMethod: formData.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment",
+    status: "pending",
+    paymentStatus: "pending",
+    orderDate: orderDate,
+    orderTime: orderTime,
+    fullDateTime: fullDateTime,
+    timestamp: now.getTime(),
+    canCancel: true
   };
+  
+  // ✅ Save to Supabase
+  try {
+    const { error: supabaseError } = await supabase
+      .from('orders')
+      .insert([
+        {
+          id: newOrder.id,
+          customer: newOrder.customer,
+          email: newOrder.email,
+          phone: newOrder.phone,
+          address: newOrder.address,
+          products: newOrder.products,
+          subtotal: newOrder.subtotal,
+          shipping: newOrder.shipping,
+          discount: newOrder.discount,
+          total: newOrder.total,
+          payment_method: newOrder.paymentMethod,
+          payment_status: newOrder.paymentStatus,
+          status: newOrder.status,
+          order_date: newOrder.orderDate,
+          order_time: newOrder.orderTime,
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    if (supabaseError) {
+      console.error('Supabase order save error:', supabaseError);
+      alert("Order placed but not saved to cloud. Check console for error.");
+    } else {
+      console.log('Order saved to Supabase successfully!');
+    }
+  } catch (err) {
+    console.error('Error saving to Supabase:', err);
+  }
+  
+  // ✅ Save to localStorage as backup
+  const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
+  existingOrders.unshift(newOrder);
+  localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
+  
+  localStorage.removeItem("cart");
+  setCart([]);
+  window.dispatchEvent(new Event("storage"));
+  
+  setOrderId(newOrder.id);
+  setOrderPlaced(true);
+  
+  setTimeout(() => {
+    navigate(`/order-tracking/${newOrder.id}`);
+  }, 3000);
+};
 
   if (loading) {
     return (

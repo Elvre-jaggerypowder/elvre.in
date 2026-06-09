@@ -2,42 +2,85 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { supabase } from '../supabaseClient';
 import "./UserLogin.css";
 
 const UserLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   // Admin credentials
   const ADMIN_EMAIL = "elvreofficals@gmail.com";
   const ADMIN_PASSWORD = "Elvre@2024";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
     
     // Check if admin login
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       localStorage.setItem("adminLoggedIn", "true");
       localStorage.removeItem("currentUser");
+      setLoading(false);
       navigate("/admin-dashboard");
       return;
     }
     
-    // Check normal user login
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      localStorage.removeItem("adminLoggedIn");
-      setError("");
-      const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
-      localStorage.removeItem("redirectAfterLogin");
-      navigate(redirectTo);
-    } else {
-      setError("Invalid email or password. Please try again.");
+    try {
+      // ✅ Check from Supabase first
+      const { data: supabaseUsers, error: supabaseError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password);
+      
+      if (supabaseError) {
+        console.error('Supabase error:', supabaseError);
+      }
+      
+      if (supabaseUsers && supabaseUsers.length > 0) {
+        // User found in Supabase
+        const user = supabaseUsers[0];
+        localStorage.setItem("currentUser", JSON.stringify({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone
+        }));
+        localStorage.removeItem("adminLoggedIn");
+        setLoading(false);
+        
+        const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
+        localStorage.removeItem("redirectAfterLogin");
+        navigate(redirectTo);
+        return;
+      }
+      
+      // ✅ If not in Supabase, check localStorage
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      const user = users.find(u => u.email === email && u.password === password);
+      
+      if (user) {
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        localStorage.removeItem("adminLoggedIn");
+        setLoading(false);
+        
+        const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
+        localStorage.removeItem("redirectAfterLogin");
+        navigate(redirectTo);
+      } else {
+        setError("Invalid email or password. Please try again.");
+        setLoading(false);
+      }
+      
+    } catch (err) {
+      console.error('Login error:', err);
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
   };
 
@@ -60,6 +103,7 @@ const UserLogin = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -71,10 +115,13 @@ const UserLogin = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
+                disabled={loading}
               />
             </div>
             
-            <button type="submit" className="login-btn">Login</button>
+            <button type="submit" className="login-btn" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </button>
           </form>
           
           <p className="signup-link">
@@ -82,7 +129,7 @@ const UserLogin = () => {
           </p>
           
           <p className="admin-note">
-            Admin Access: Use provided credentials
+            🔐 Admin Access: Use provided credentials
           </p>
         </div>
       </div>

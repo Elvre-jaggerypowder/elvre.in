@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
+import { supabase } from '../supabaseClient';
 import "./ProductsPage.css";
 
 const ProductsPage = () => {
@@ -42,50 +43,88 @@ const ProductsPage = () => {
     applyFilters();
   }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
 
-  const loadProducts = () => {
-    const savedProducts = localStorage.getItem("elvreProducts");
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    } else {
-      const defaultProducts = [
-        {
-          id: 1,
-          name: "ELVRE Organic Jaggery Powder",
-          description: "500g - Chemical Free, Natural Sweetener. Rich in iron and minerals.",
-          price: "₹149",
-          priceValue: 149,
-          stock: 50,
-          image: "/assets/jaggery.png",
-          category: "jaggery",
-          badge: "Bestseller"
-        },
-        {
-          id: 2,
-          name: "ELVRE Palm Jaggery",
-          description: "500g - Rich in Minerals. Made from fresh palm sap.",
-          price: "₹199",
-          priceValue: 199,
-          stock: 35,
-          image: "/assets/productpacking.png",
-          category: "jaggery",
-          badge: "Popular"
-        },
-        {
-          id: 3,
-          name: "ELVRE Gift Pack",
-          description: "500g x 2 - Special Edition. Perfect for gifting.",
-          price: "₹299",
-          priceValue: 299,
-          stock: 20,
-          image: "/assets/bowl.png",
-          category: "special",
-          badge: "Limited"
+  const loadProducts = async () => {
+    try {
+      const { data: supabaseProducts, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedProducts = localStorage.getItem("elvreProducts");
+        if (savedProducts) {
+          setProducts(JSON.parse(savedProducts));
+        } else {
+          setDefaultProducts();
         }
-      ];
-      setProducts(defaultProducts);
-      localStorage.setItem("elvreProducts", JSON.stringify(defaultProducts));
+      } else if (supabaseProducts && supabaseProducts.length > 0) {
+        console.log('Products from Supabase:', supabaseProducts);
+        const formattedProducts = supabaseProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: `₹${p.price}`,
+          priceValue: p.price,
+          stock: p.stock,
+          image: p.image,
+          category: p.category,
+          badge: p.badge,
+          soldCount: p.sold_count || 0
+        }));
+        setProducts(formattedProducts);
+        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+      } else {
+        setDefaultProducts();
+      }
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setDefaultProducts();
     }
     setLoading(false);
+  };
+
+  const setDefaultProducts = () => {
+    const defaultProducts = [
+      {
+        id: 1,
+        name: "ELVRE Organic Jaggery Powder",
+        description: "500g - Chemical Free, Natural Sweetener. Rich in iron and minerals.",
+        price: "₹149",
+        priceValue: 149,
+        stock: 50,
+        image: "/assets/jaggery.png",
+        category: "jaggery",
+        badge: "Bestseller",
+        soldCount: 0
+      },
+      {
+        id: 2,
+        name: "ELVRE Palm Jaggery",
+        description: "500g - Rich in Minerals. Made from fresh palm sap.",
+        price: "₹199",
+        priceValue: 199,
+        stock: 35,
+        image: "/assets/productpacking.png",
+        category: "jaggery",
+        badge: "Popular",
+        soldCount: 0
+      },
+      {
+        id: 3,
+        name: "ELVRE Gift Pack",
+        description: "500g x 2 - Special Edition. Perfect for gifting.",
+        price: "₹299",
+        priceValue: 299,
+        stock: 20,
+        image: "/assets/bowl.png",
+        category: "special",
+        badge: "Limited",
+        soldCount: 0
+      }
+    ];
+    setProducts(defaultProducts);
+    localStorage.setItem("elvreProducts", JSON.stringify(defaultProducts));
   };
 
   const loadReviews = () => {
