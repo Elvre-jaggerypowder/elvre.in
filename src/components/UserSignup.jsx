@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { supabase } from '../supabaseClient';
 import "./UserSignup.css";
 
 const UserSignup = () => {
@@ -11,10 +12,21 @@ const UserSignup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Clear previous messages
+    setError("");
+    setSuccess("");
+    
+    // Validation
+    if (!name || !email || !password) {
+      setError("Please fill all fields");
+      return;
+    }
     
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -26,31 +38,70 @@ const UserSignup = () => {
       return;
     }
     
-    // Get existing users
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    setLoading(true);
     
-    // Check if email already exists
-    if (users.find(u => u.email === email)) {
-      setError("Email already registered");
-      return;
+    try {
+      // ✅ Step 1: Save to Supabase
+      const { data: supabaseData, error: supabaseError } = await supabase
+        .from('users')
+        .insert([
+          { 
+            name: name, 
+            email: email, 
+            password: password,
+            phone: '',
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (supabaseError) {
+        console.error('Supabase error:', supabaseError);
+        
+        // Check if email already exists in Supabase
+        if (supabaseError.code === '23505') {
+          setError("Email already registered");
+        } else {
+          setError("Registration failed. Please try again.");
+        }
+        setLoading(false);
+        return;
+      }
+
+      console.log('User saved to Supabase:', supabaseData);
+      
+      // ✅ Step 2: Also save to localStorage for backup
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      
+      // Check if email already exists in localStorage
+      if (users.find(u => u.email === email)) {
+        setError("Email already registered");
+        setLoading(false);
+        return;
+      }
+      
+      // Create new user
+      const newUser = {
+        id: Date.now(),
+        name,
+        email,
+        password,
+        createdAt: new Date().toISOString()
+      };
+      
+      users.push(newUser);
+      localStorage.setItem("users", JSON.stringify(users));
+      
+      setSuccess("Account created successfully! Please login.");
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Error:', err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    
-    // Create new user
-    const newUser = {
-      id: Date.now(),
-      name,
-      email,
-      password,
-      createdAt: new Date().toISOString()
-    };
-    
-    users.push(newUser);
-    localStorage.setItem("users", JSON.stringify(users));
-    
-    setSuccess("Account created successfully! Please login.");
-    setTimeout(() => {
-      navigate("/login");
-    }, 2000);
   };
 
   return (
@@ -73,6 +124,7 @@ const UserSignup = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your full name"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -84,6 +136,7 @@ const UserSignup = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -93,8 +146,9 @@ const UserSignup = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create password"
+                placeholder="Create password (min 6 characters)"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -104,12 +158,15 @@ const UserSignup = () => {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
+                placeholder="Confirm your password"
                 required
+                disabled={loading}
               />
             </div>
             
-            <button type="submit" className="signup-btn">Sign Up</button>
+            <button type="submit" className="signup-btn" disabled={loading}>
+              {loading ? "Creating account..." : "Sign Up"}
+            </button>
           </form>
           
           <p className="login-link">
