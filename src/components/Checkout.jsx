@@ -24,6 +24,7 @@ const Checkout = () => {
   const [otpCode, setOtpCode] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [showOtpInput, setShowOtpInput] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -315,139 +316,142 @@ const Checkout = () => {
   };
 
   const placeOrder = async (e) => {
-    e.preventDefault();
-    
-    if (showNewAddressForm && !selectedAddressId) {
-      if (!phoneVerified) {
-        alert("Please verify your phone number first");
-        return;
-      }
-      saveAddress(formData);
+  e.preventDefault();
+  
+  if (showNewAddressForm && !selectedAddressId) {
+    if (!phoneVerified) {
+      alert("Please verify your phone number first");
+      return;
     }
+    saveAddress(formData);
+  }
+  
+  if (!formData.fullName || !formData.email || !formData.phone || !formData.address) {
+    alert("Please fill all required fields");
+    return;
+  }
+  
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const now = new Date();
+  const orderDate = now.toLocaleDateString();
+  const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Update product stock in Supabase
+  for (const item of cart) {
+    const orderedQty = item.quantity || 1;
+    const currentStock = item.stock;
+    const newStock = currentStock - orderedQty;
     
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.address) {
-      alert("Please fill all required fields");
+    if (newStock < 0) {
+      alert(`Insufficient stock for ${item.name}. Only ${currentStock} left.`);
       return;
     }
     
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    const now = new Date();
-    const orderDate = now.toLocaleDateString();
-    const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    // Update product stock
-    for (const item of cart) {
-      const orderedQty = item.quantity || 1;
-      const currentStock = item.stock;
-      const newStock = currentStock - orderedQty;
-      
-      if (newStock < 0) {
-        alert(`Insufficient stock for ${item.name}. Only ${currentStock} left.`);
-        return;
-      }
-      
-      await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', item.id);
+    await supabase
+      .from('products')
+      .update({ stock: newStock })
+      .eq('id', item.id);
+  }
+  
+  // Update localStorage products
+  const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
+  const updatedProducts = allProducts.map(product => {
+    const orderedItem = cart.find(item => item.id === product.id);
+    if (orderedItem) {
+      const newStock = product.stock - (orderedItem.quantity || 1);
+      return { ...product, stock: Math.max(0, newStock) };
     }
-    
-    const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
-    const updatedProducts = allProducts.map(product => {
-      const orderedItem = cart.find(item => item.id === product.id);
-      if (orderedItem) {
-        const newStock = product.stock - (orderedItem.quantity || 1);
-        return { ...product, stock: Math.max(0, newStock) };
-      }
-      return product;
-    });
-    localStorage.setItem("elvreProducts", JSON.stringify(updatedProducts));
-    window.dispatchEvent(new Event("productsUpdated"));
-    
-    const newOrder = {
-      id: "ORD" + Date.now(),
-      customer: formData.fullName,
-      email: currentUser?.email || formData.email,
-      phone: formData.phone,
-      address: `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`,
-      products: cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0,
-        quantity: item.quantity || 1,
-        image: item.image
-      })),
-      subtotal: subtotal,
-      shipping: shipping,
-      discount: 0,
-      total: total,
-      paymentMethod: formData.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment",
-      status: "pending",
-      paymentStatus: "pending",
-      orderDate: orderDate,
-      orderTime: orderTime
-    };
-    
-    // Save order to Supabase
-    try {
-      const { data: insertedData, error: supabaseError } = await supabase
-        .from('orders')
-        .insert([
-          {
-            id: newOrder.id,
-            customer: newOrder.customer,
-            email: newOrder.email,
-            phone: newOrder.phone,
-            address: newOrder.address,
-            products: newOrder.products,
-            subtotal: newOrder.subtotal,
-            shipping: newOrder.shipping,
-            discount: newOrder.discount,
-            total: newOrder.total,
-            payment_method: newOrder.paymentMethod,
-            payment_status: newOrder.paymentStatus,
-            status: newOrder.status,
-            order_date: newOrder.orderDate,
-            order_time: newOrder.orderTime,
-            created_at: new Date().toISOString()
-          }
-        ]);
-        
-      if (supabaseError) {
-        console.error('Supabase order save error:', supabaseError);
-      } else {
-        console.log('✅ Order saved to Supabase successfully!', insertedData);
-      }
-    } catch (err) {
-      console.error('Error saving to Supabase:', err);
+    return product;
+  });
+  localStorage.setItem("elvreProducts", JSON.stringify(updatedProducts));
+  window.dispatchEvent(new Event("productsUpdated"));
+  
+  const newOrder = {
+    id: "ORD" + Date.now(),
+    customer: formData.fullName,
+    email: currentUser?.email || formData.email,
+    phone: formData.phone,
+    address: `${formData.address}, ${formData.city}, ${formData.state} - ${formData.pincode}`,
+    products: cart.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0,
+      quantity: item.quantity || 1,
+      image: item.image
+    })),
+    subtotal: subtotal,
+    shipping: shipping,
+    discount: 0,
+    total: total,
+    paymentMethod: formData.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment",
+    status: "pending",
+    paymentStatus: "pending",
+    orderDate: orderDate,
+    orderTime: orderTime
+  };
+  
+  // Save order to Supabase
+  try {
+    const { error: supabaseError } = await supabase
+      .from('orders')
+      .insert([
+        {
+          id: newOrder.id,
+          customer: newOrder.customer,
+          email: newOrder.email,
+          phone: newOrder.phone,
+          address: newOrder.address,
+          products: newOrder.products,
+          subtotal: newOrder.subtotal,
+          shipping: newOrder.shipping,
+          discount: newOrder.discount,
+          total: newOrder.total,
+          payment_method: newOrder.paymentMethod,
+          payment_status: newOrder.paymentStatus,
+          status: newOrder.status,
+          order_date: newOrder.orderDate,
+          order_time: newOrder.orderTime,
+          created_at: new Date().toISOString()
+        }
+      ]);
+      
+    if (supabaseError) {
+      console.error('Supabase order save error:', supabaseError);
+    } else {
+      console.log('✅ Order saved to Supabase');
     }
-    
-    // Save to localStorage backup
-    const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
-    existingOrders.unshift(newOrder);
-    localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
-    
-    localStorage.removeItem("cart");
-    setCart([]);
-    window.dispatchEvent(new Event("storage"));
-    
-    // Send emails
+  } catch (err) {
+    console.error('Error saving to Supabase:', err);
+  }
+  
+  // Save to localStorage backup
+  const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
+  existingOrders.unshift(newOrder);
+  localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
+  
+  localStorage.removeItem("cart");
+  setCart([]);
+  window.dispatchEvent(new Event("storage"));
+  
+  // ✅ Send emails ONLY ONCE
+  if (!emailSent) {
     try {
       await sendOrderConfirmation(newOrder);
       await sendAdminNotification(newOrder);
+      setEmailSent(true);
       console.log('✅ Emails sent successfully');
     } catch (emailErr) {
       console.error('Email sending failed:', emailErr);
     }
-    
-    setOrderId(newOrder.id);
-    setOrderPlaced(true);
-    
-    setTimeout(() => {
-      navigate(`/order-tracking/${newOrder.id}`);
-    }, 3000);
-  };
-
+  }
+  
+  setOrderId(newOrder.id);
+  setOrderPlaced(true);
+  
+  setTimeout(() => {
+    navigate(`/order-tracking/${newOrder.id}`);
+  }, 3000);
+};
   if (loading) {
     return (
       <>

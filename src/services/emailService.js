@@ -3,16 +3,14 @@ import emailjs from '@emailjs/browser';
 // Initialize EmailJS
 emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
 
-const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL || 'elvreofficals@gmail.com';
-
 // Send order confirmation to customer
 export const sendOrderConfirmation = async (orderDetails) => {
   try {
     const trackingUrl = `${window.location.origin}/order-tracking/${orderDetails.id}`;
     
-    console.log('Sending email to:', orderDetails.email);
-    console.log('Order ID:', orderDetails.id);
-    console.log('Tracking URL:', trackingUrl);
+    console.log('📧 Sending order confirmation email to customer:', orderDetails.email);
+    console.log('📧 Order ID:', orderDetails.id);
+    console.log('📧 Tracking URL:', trackingUrl);
     
     const templateParams = {
       order_id: orderDetails.id,
@@ -30,7 +28,9 @@ export const sendOrderConfirmation = async (orderDetails) => {
       total_amount: orderDetails.total,
       shipping_address: orderDetails.address,
       payment_method: orderDetails.paymentMethod,
-      tracking_link: trackingUrl
+      tracking_link: trackingUrl,
+      to_email: orderDetails.email,
+      reply_to: 'elvreofficals@gmail.com'
     };
 
     const result = await emailjs.send(
@@ -39,10 +39,11 @@ export const sendOrderConfirmation = async (orderDetails) => {
       templateParams
     );
     
-    console.log('Order confirmation email sent successfully:', result);
+    console.log('✅ Order confirmation email sent successfully to:', orderDetails.email);
+    console.log('✅ EmailJS Response:', result);
     return { success: true };
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error('❌ Order confirmation email error:', error);
     return { success: false, error };
   }
 };
@@ -50,6 +51,10 @@ export const sendOrderConfirmation = async (orderDetails) => {
 // Send new order notification to admin
 export const sendAdminNotification = async (orderDetails) => {
   try {
+    console.log('📧 Sending admin notification for order:', orderDetails.id);
+    console.log('📧 Customer:', orderDetails.customer);
+    console.log('📧 Total Amount:', orderDetails.total);
+    
     const templateParams = {
       order_id: orderDetails.id,
       customer_name: orderDetails.customer,
@@ -67,8 +72,7 @@ export const sendAdminNotification = async (orderDetails) => {
       shipping_address: orderDetails.address,
       payment_method: orderDetails.paymentMethod,
       admin_link: `${window.location.origin}/admin-dashboard`,
-      to_email: ADMIN_EMAIL,
-      reply_to: orderDetails.email
+      to_email: 'elvreofficals@gmail.com'
     };
 
     const result = await emailjs.send(
@@ -77,10 +81,11 @@ export const sendAdminNotification = async (orderDetails) => {
       templateParams
     );
     
-    console.log('Admin notification email sent to:', ADMIN_EMAIL, result);
+    console.log('✅ Admin notification sent successfully to: elvreofficals@gmail.com');
+    console.log('✅ EmailJS Response:', result);
     return { success: true };
   } catch (error) {
-    console.error('Admin email error:', error);
+    console.error('❌ Admin notification email error:', error);
     return { success: false, error };
   }
 };
