@@ -203,7 +203,6 @@ const Checkout = () => {
     }
   };
 
-  // ✅ Phone Number Verification Functions
   const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
@@ -336,7 +335,7 @@ const Checkout = () => {
     const orderDate = now.toLocaleDateString();
     const orderTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    // ✅ UPDATE PRODUCT STOCK IN SUPABASE
+    // Update product stock
     for (const item of cart) {
       const orderedQty = item.quantity || 1;
       const currentStock = item.stock;
@@ -347,19 +346,12 @@ const Checkout = () => {
         return;
       }
       
-      const { error: stockError } = await supabase
+      await supabase
         .from('products')
         .update({ stock: newStock })
         .eq('id', item.id);
-      
-      if (stockError) {
-        console.error('Stock update error:', stockError);
-      } else {
-        console.log(`Stock updated for ${item.name}: ${currentStock} → ${newStock}`);
-      }
     }
     
-    // Update localStorage products
     const allProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
     const updatedProducts = allProducts.map(product => {
       const orderedItem = cart.find(item => item.id === product.id);
@@ -398,7 +390,7 @@ const Checkout = () => {
     
     // Save order to Supabase
     try {
-      const { error: supabaseError } = await supabase
+      const { data: insertedData, error: supabaseError } = await supabase
         .from('orders')
         .insert([
           {
@@ -420,7 +412,12 @@ const Checkout = () => {
             created_at: new Date().toISOString()
           }
         ]);
-      if (supabaseError) console.error('Supabase order save error:', supabaseError);
+        
+      if (supabaseError) {
+        console.error('Supabase order save error:', supabaseError);
+      } else {
+        console.log('✅ Order saved to Supabase successfully!', insertedData);
+      }
     } catch (err) {
       console.error('Error saving to Supabase:', err);
     }
@@ -434,11 +431,11 @@ const Checkout = () => {
     setCart([]);
     window.dispatchEvent(new Event("storage"));
     
-    // ✅ SEND EMAILS
+    // Send emails
     try {
       await sendOrderConfirmation(newOrder);
       await sendAdminNotification(newOrder);
-      console.log('Emails sent successfully');
+      console.log('✅ Emails sent successfully');
     } catch (emailErr) {
       console.error('Email sending failed:', emailErr);
     }

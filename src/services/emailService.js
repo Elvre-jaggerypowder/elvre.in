@@ -8,6 +8,12 @@ const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL || 'elvreofficals@gmail.co
 // Send order confirmation to customer
 export const sendOrderConfirmation = async (orderDetails) => {
   try {
+    const trackingUrl = `${window.location.origin}/order-tracking/${orderDetails.id}`;
+    
+    console.log('Sending email to:', orderDetails.email);
+    console.log('Order ID:', orderDetails.id);
+    console.log('Tracking URL:', trackingUrl);
+    
     const templateParams = {
       order_id: orderDetails.id,
       customer_name: orderDetails.customer,
@@ -24,7 +30,7 @@ export const sendOrderConfirmation = async (orderDetails) => {
       total_amount: orderDetails.total,
       shipping_address: orderDetails.address,
       payment_method: orderDetails.paymentMethod,
-      tracking_link: `${window.location.origin}/order-tracking/${orderDetails.id}`
+      tracking_link: trackingUrl
     };
 
     const result = await emailjs.send(
@@ -33,7 +39,7 @@ export const sendOrderConfirmation = async (orderDetails) => {
       templateParams
     );
     
-    console.log('Order confirmation email sent to customer:', result);
+    console.log('Order confirmation email sent successfully:', result);
     return { success: true };
   } catch (error) {
     console.error('Email send error:', error);

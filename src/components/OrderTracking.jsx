@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { supabase } from '../supabaseClient';
 import "./OrderTracking.css";
 
 const OrderTracking = () => {
@@ -14,10 +15,61 @@ const OrderTracking = () => {
     loadOrder();
   }, [orderId]);
 
-  const loadOrder = () => {
-    const orders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
-    const foundOrder = orders.find(o => o.id === orderId);
-    setOrder(foundOrder);
+  const loadOrder = async () => {
+    console.log('Searching for order ID:', orderId);
+    
+    // ✅ First check localStorage
+    const localOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
+    let foundOrder = localOrders.find(o => o.id === orderId);
+    
+    if (foundOrder) {
+      console.log('✅ Order found in localStorage:', foundOrder);
+      setOrder(foundOrder);
+      setLoading(false);
+      return;
+    }
+    
+    // ✅ If not in localStorage, check Supabase
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+      
+      if (error) {
+        console.error('Supabase error:', error);
+      }
+      
+      if (data) {
+        console.log('✅ Order found in Supabase:', data);
+        const formattedOrder = {
+          id: data.id,
+          customer: data.customer,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          products: data.products,
+          subtotal: data.subtotal,
+          shipping: data.shipping,
+          discount: data.discount,
+          total: data.total,
+          status: data.status,
+          paymentMethod: data.payment_method,
+          orderDate: data.order_date,
+          orderTime: data.order_time,
+          fullDateTime: `${data.order_date} at ${data.order_time}`
+        };
+        setOrder(formattedOrder);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.error('Error fetching from Supabase:', err);
+    }
+    
+    console.log('❌ Order not found:', orderId);
+    setOrder(null);
     setLoading(false);
   };
 
@@ -60,6 +112,7 @@ const OrderTracking = () => {
           <div className="not-found-icon">🔍</div>
           <h2>Order Not Found</h2>
           <p>We couldn't find an order with ID: <strong>{orderId}</strong></p>
+          <p>Please check your order ID and try again.</p>
           <button onClick={() => navigate("/")} className="back-home-btn">
             Back to Home
           </button>
@@ -78,12 +131,11 @@ const OrderTracking = () => {
         <div className="tracking-wrapper">
           <h1>Track Your Order</h1>
           
-          {/* Order Info Card */}
           <div className="order-info-card">
             <div className="order-header">
               <div>
                 <h3>Order #{order.id}</h3>
-                <p className="order-date">Placed on {order.orderDate}</p>
+                <p className="order-date">Placed on: {order.fullDateTime || `${order.orderDate} at ${order.orderTime}`}</p>
               </div>
               <div className={`order-status-badge status-${order.status}`}>
                 {order.status === "pending" && "⏳ Pending"}
@@ -94,7 +146,6 @@ const OrderTracking = () => {
               </div>
             </div>
             
-            {/* Tracking Timeline */}
             <div className="tracking-timeline">
               {statusSteps.map((step, index) => (
                 <div key={index} className={`timeline-step ${step.completed ? "completed" : ""} ${step.active ? "active" : ""}`}>
@@ -102,14 +153,6 @@ const OrderTracking = () => {
                   <div className="step-content">
                     <h4>{step.label}</h4>
                     <p>{step.description}</p>
-                    {step.active && (
-                      <div className="estimated-time">
-                        {step.key === "pending" && "Estimated: 1-2 days"}
-                        {step.key === "processing" && "Estimated: 3-4 days"}
-                        {step.key === "shipped" && "Estimated: 5-7 days"}
-                        {step.key === "delivered" && "Delivered on time"}
-                      </div>
-                    )}
                   </div>
                   {index < statusSteps.length - 1 && <div className="step-line"></div>}
                 </div>
@@ -117,9 +160,8 @@ const OrderTracking = () => {
             </div>
           </div>
           
-          {/* Products Details Card */}
           <div className="order-details-card">
-            <h3>Order Items</h3>
+            <h3>Order Details</h3>
             <div className="products-list">
               {order.products && order.products.map((product, idx) => {
                 const productPrice = product.price || product.priceValue || 0;
@@ -128,14 +170,7 @@ const OrderTracking = () => {
                 
                 return (
                   <div key={idx} className="order-product">
-                    <img 
-                      src={product.image || "/assets/jaggery.png"} 
-                      alt={product.name} 
-                      className="product-image"
-                      onError={(e) => {
-                        e.target.src = "/assets/jaggery.png";
-                      }}
-                    />
+                    <img src={product.image || "/assets/jaggery.png"} alt={product.name} className="product-image" />
                     <div className="product-info">
                       <h4>{product.name}</h4>
                       <div className="product-meta">
@@ -143,15 +178,12 @@ const OrderTracking = () => {
                         <span className="product-quantity">Quantity: {productQty}</span>
                       </div>
                     </div>
-                    <div className="product-total">
-                      ₹{productTotal}
-                    </div>
+                    <div className="product-total">₹{productTotal}</div>
                   </div>
                 );
               })}
             </div>
             
-            {/* Price Summary */}
             <div className="price-summary">
               <div className="summary-row">
                 <span>Subtotal ({order.products?.reduce((sum, p) => sum + (p.quantity || 1), 0) || 0} items):</span>
@@ -167,11 +199,6 @@ const OrderTracking = () => {
                 <span>Shipping:</span>
                 <span>{order.shipping === 0 ? "Free" : `₹${order.shipping || 0}`}</span>
               </div>
-              {order.subtotal < 499 && order.subtotal > 0 && (
-                <div className="free-shipping-note">
-                  ✨ Add ₹{(499 - order.subtotal).toFixed(2)} more for free shipping!
-                </div>
-              )}
               <div className="summary-row total">
                 <span>Total Amount:</span>
                 <span>₹{order.total || 0}</span>
@@ -179,7 +206,6 @@ const OrderTracking = () => {
             </div>
           </div>
           
-          {/* Shipping & Payment Details */}
           <div className="shipping-details-card">
             <div className="details-grid">
               <div className="detail-section">
@@ -197,7 +223,6 @@ const OrderTracking = () => {
             </div>
           </div>
           
-          {/* Help Section */}
           <div className="help-section">
             <h3>Need Help With Your Order?</h3>
             <p>If you have any questions about your order, please contact our support team.</p>
