@@ -145,10 +145,10 @@ const Navbar = () => {
             {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
           </Link>
           
-          {/* My Orders Link - Only visible when logged in */}
+          {/* Profile Link - Only visible when logged in */}
           {isLoggedIn && (
-            <Link to="/my-orders" className="orders-link">
-              <FaListAlt /> My Orders
+            <Link to="/profile" className="profile-link">
+              <FaUser /> Profile
             </Link>
           )}
           
@@ -188,7 +188,6 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         <div className={`mobile-menu ${isOpen ? "active" : ""}`}>
-          {/* Home button always on top in mobile menu */}
           {isHomePage ? (
             <>
               <ScrollLink to="hero" smooth={true} duration={500} onClick={toggleMenu}>
@@ -224,6 +223,13 @@ const Navbar = () => {
           {isLoggedIn && (
             <Link to="/my-orders" onClick={toggleMenu} className="mobile-orders-link">
               <FaListAlt /> My Orders
+            </Link>
+          )}
+          
+          {/* Profile Link in Mobile Menu */}
+          {isLoggedIn && (
+            <Link to="/profile" onClick={toggleMenu} className="mobile-profile-link">
+              <FaUser /> My Profile
             </Link>
           )}
           

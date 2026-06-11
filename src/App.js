@@ -16,6 +16,7 @@ import Contact from "./components/Contact";
 import TermsAndConditions from "./components/TermsAndConditions";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import OrdersPage from "./components/OrdersPage";
+import UserProfile from "./components/UserProfile";
 
 // Auth Components
 import UserLogin from "./components/UserLogin";
@@ -39,7 +40,6 @@ import WhatsApp from "./components/WhatsApp";
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem("currentUser");
   if (!isLoggedIn) {
-    // Save the attempted URL for redirect after login
     localStorage.setItem("redirectAfterLogin", window.location.pathname);
     return <Navigate to="/login" replace />;
   }
@@ -109,6 +109,17 @@ function App() {
                 <>
                   <Navbar />
                   <OrdersPage />
+                  <Footer />
+                </>
+              </ProtectedRoute>
+            } />
+            
+            {/* User Profile Route - Protected */}
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <>
+                  <Navbar />
+                  <UserProfile />
                   <Footer />
                 </>
               </ProtectedRoute>
