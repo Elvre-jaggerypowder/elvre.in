@@ -1,7 +1,11 @@
 import emailjs from '@emailjs/browser';
 
-// Initialize EmailJS
-emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
+// Initialize EmailJS with new format
+emailjs.init({
+  publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY,
+});
+
+console.log('EmailJS initialized with public key:', process.env.REACT_APP_EMAILJS_PUBLIC_KEY);
 
 // Send order confirmation to customer
 export const sendOrderConfirmation = async (orderDetails) => {
@@ -11,6 +15,8 @@ export const sendOrderConfirmation = async (orderDetails) => {
     console.log('📧 Sending order confirmation email to customer:', orderDetails.email);
     console.log('📧 Order ID:', orderDetails.id);
     console.log('📧 Tracking URL:', trackingUrl);
+    console.log('📧 Service ID:', process.env.REACT_APP_EMAILJS_SERVICE_ID);
+    console.log('📧 Template ID:', process.env.REACT_APP_EMAILJS_TEMPLATE_USER);
     
     const templateParams = {
       order_id: orderDetails.id,
@@ -41,9 +47,10 @@ export const sendOrderConfirmation = async (orderDetails) => {
     
     console.log('✅ Order confirmation email sent successfully to:', orderDetails.email);
     console.log('✅ EmailJS Response:', result);
-    return { success: true };
+    return { success: true, result };
   } catch (error) {
     console.error('❌ Order confirmation email error:', error);
+    console.error('❌ Error details:', error.text);
     return { success: false, error };
   }
 };
@@ -54,6 +61,8 @@ export const sendAdminNotification = async (orderDetails) => {
     console.log('📧 Sending admin notification for order:', orderDetails.id);
     console.log('📧 Customer:', orderDetails.customer);
     console.log('📧 Total Amount:', orderDetails.total);
+    console.log('📧 Service ID:', process.env.REACT_APP_EMAILJS_SERVICE_ID);
+    console.log('📧 Template ID:', process.env.REACT_APP_EMAILJS_TEMPLATE_ADMIN);
     
     const templateParams = {
       order_id: orderDetails.id,
@@ -83,9 +92,10 @@ export const sendAdminNotification = async (orderDetails) => {
     
     console.log('✅ Admin notification sent successfully to: elvreofficals@gmail.com');
     console.log('✅ EmailJS Response:', result);
-    return { success: true };
+    return { success: true, result };
   } catch (error) {
     console.error('❌ Admin notification email error:', error);
+    console.error('❌ Error details:', error.text);
     return { success: false, error };
   }
 };
