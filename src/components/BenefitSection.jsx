@@ -1,34 +1,46 @@
 import React from "react";
 import "./BenefitSection.css";
 
-const BenefitsSection = () => {
+const BenefitSection = () => {
+  const benefits = [
+    {
+      icon: "🛡️",
+      title: "Immunity & Detox",
+      description: "Natural antioxidants help boost immunity and detoxify body. Rich in essential minerals for overall wellness."
+    },
+    {
+      icon: "🌿",
+      title: "Hormonal Respiratory",
+      description: "Balances hormones and supports respiratory health. Helps maintain hormonal equilibrium naturally."
+    },
+    {
+      icon: "⚡",
+      title: "Boosts Energy Naturally",
+      description: "Provides sustained energy without sugar crashes. Perfect for daily nutrition and vitality."
+    }
+  ];
+
   return (
-    <section className="benefits-wrapper">
-      <div
-        className="benefit-card"
-        style={{ backgroundImage: `url(${process.env.PUBLIC_URL}/assets/Draft.png)` }}
-        data-aos="flip-left"
-      >
-        <p className="benefit-text1">Immunity & Detox</p>
-      </div>
-      <div
-        className="benefit-card"
-        style={{ backgroundImage: `url(${process.env.PUBLIC_URL}/assets/Draft.png)` }}
-        data-aos="flip-up"
-      >
-        <p className="benefit-text2">
-          Hormonal Respiratory <br /> Antioxidants & Vital Minerals
-        </p>
-      </div>
-      <div
-        className="benefit-card"
-        style={{ backgroundImage: `url(${process.env.PUBLIC_URL}/assets/Draft.png)` }}
-        data-aos="flip-right"
-      >
-        <p className="benefit-text3">Boosts Energy Naturally</p>
+    <section className="benefit-section">
+      <div className="benefit-container">
+        <div className="benefit-header">
+          <h2>Why Choose <span>ELVRE</span></h2>
+          <p>NATURE'S BEST FOR YOUR WELLNESS</p>
+        </div>
+
+        <div className="benefit-grid">
+          {benefits.map((benefit, index) => (
+            <div key={index} className="benefit-card">
+              <div className="benefit-icon">{benefit.icon}</div>
+              <h3>{benefit.title}</h3>
+              <div className="benefit-line"></div>
+              <p>{benefit.description}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 };
 
-export default BenefitsSection;
+export default BenefitSection;

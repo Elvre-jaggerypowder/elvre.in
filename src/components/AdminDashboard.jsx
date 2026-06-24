@@ -8,6 +8,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [allReviews, setAllReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,21 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  
+  // Contact Info State
+  const [contactInfo, setContactInfo] = useState({
+    phone1: "+91 7060998050",
+    phone2: "+91 7906396629",
+    email: "elvreofficals@gmail.com",
+    address: "1st Floor, Sangam Tent House, Jawalapur, Haridwar, Uttrakhand, 249407"
+  });
+  const [editContactMode, setEditContactMode] = useState(false);
+  const [contactFormData, setContactFormData] = useState({
+    phone1: "",
+    phone2: "",
+    email: "",
+    address: ""
+  });
   
   const [newCoupon, setNewCoupon] = useState({
     code: "",
@@ -50,8 +66,10 @@ const AdminDashboard = () => {
     loadProducts();
     loadOrders();
     loadUsers();
+    loadFeedbacks();
     loadCoupons();
     loadAllReviews();
+    loadContactInfo();
   }, []);
 
   // Real-time subscription for new users
@@ -81,6 +99,24 @@ const AdminDashboard = () => {
         (payload) => {
           console.log('New order added in real-time!', payload.new);
           setOrders(prev => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Real-time subscription for new feedbacks
+  useEffect(() => {
+    const subscription = supabase
+      .channel('feedbacks-channel')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'feedbacks' }, 
+        (payload) => {
+          console.log('New feedback added in real-time!', payload.new);
+          setFeedbacks(prev => [payload.new, ...prev]);
         }
       )
       .subscribe();
@@ -215,6 +251,31 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadFeedbacks = async () => {
+    try {
+      const { data: supabaseFeedbacks, error } = await supabase
+        .from('feedbacks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedFeedbacks = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        setFeedbacks(savedFeedbacks);
+      } else if (supabaseFeedbacks && supabaseFeedbacks.length > 0) {
+        setFeedbacks(supabaseFeedbacks);
+        localStorage.setItem("feedbacks", JSON.stringify(supabaseFeedbacks));
+      } else {
+        const savedFeedbacks = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        setFeedbacks(savedFeedbacks);
+      }
+    } catch (err) {
+      console.error('Error loading feedbacks:', err);
+      const savedFeedbacks = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+      setFeedbacks(savedFeedbacks);
+    }
+  };
+
   const loadCoupons = async () => {
     try {
       const { data: supabaseCoupons, error } = await supabase
@@ -295,6 +356,37 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error('Error loading reviews:', err);
     }
+  };
+
+  const loadContactInfo = () => {
+    const saved = localStorage.getItem("contactInfo");
+    if (saved) {
+      setContactInfo(JSON.parse(saved));
+      setContactFormData(JSON.parse(saved));
+    } else {
+      const defaultInfo = {
+        phone1: "+91 7060998050",
+        phone2: "+91 7906396629",
+        email: "elvreofficals@gmail.com",
+        address: "1st Floor, Sangam Tent House, Jawalapur, Haridwar, Uttrakhand, 249407"
+      };
+      setContactInfo(defaultInfo);
+      setContactFormData(defaultInfo);
+      localStorage.setItem("contactInfo", JSON.stringify(defaultInfo));
+    }
+  };
+
+  const saveContactInfo = () => {
+    if (!contactFormData.phone1 || !contactFormData.email || !contactFormData.address) {
+      setMessage("Please fill all required fields");
+      return;
+    }
+    
+    localStorage.setItem("contactInfo", JSON.stringify(contactFormData));
+    setContactInfo(contactFormData);
+    setEditContactMode(false);
+    setMessage("Contact information updated successfully!");
+    setTimeout(() => setMessage(""), 3000);
   };
 
   const saveProducts = (updatedProducts) => {
@@ -628,6 +720,7 @@ const AdminDashboard = () => {
   const totalProducts = products.length;
   const lowStockProducts = products.filter(product => product.stock < 20).length;
   const totalUsers = users.length;
+  const totalFeedbacks = feedbacks.length;
   const pendingPayments = orders.filter(order => order.paymentStatus === "pending").length;
   const pendingRefunds = orders.filter(order => order.status === "cancelled" && order.paymentStatus !== "refunded").length;
   
@@ -658,6 +751,7 @@ const AdminDashboard = () => {
         <div className="stat-card"><div className="stat-icon">🛍️</div><div className="stat-info"><h3>{totalProducts}</h3><p>Total Products</p></div></div>
         <div className="stat-card"><div className="stat-icon">⚠️</div><div className="stat-info"><h3>{lowStockProducts}</h3><p>Low Stock Items</p></div></div>
         <div className="stat-card"><div className="stat-icon">👥</div><div className="stat-info"><h3>{totalUsers}</h3><p>Total Customers</p></div></div>
+        <div className="stat-card"><div className="stat-icon">💬</div><div className="stat-info"><h3>{totalFeedbacks}</h3><p>Total Feedbacks</p></div></div>
         <div className="stat-card"><div className="stat-icon">💳</div><div className="stat-info"><h3>{pendingPayments}</h3><p>Pending Payments</p></div></div>
         <div className="stat-card"><div className="stat-icon">🔄</div><div className="stat-info"><h3>{pendingRefunds}</h3><p>Refund Requests</p></div></div>
       </div>
@@ -670,6 +764,8 @@ const AdminDashboard = () => {
         <button className={activeTab === "coupons" ? "tab-active" : "tab"} onClick={() => setActiveTab("coupons")}>🎫 Coupons</button>
         <button className={activeTab === "reviews" ? "tab-active" : "tab"} onClick={() => setActiveTab("reviews")}>⭐ Reviews</button>
         <button className={activeTab === "customers" ? "tab-active" : "tab"} onClick={() => setActiveTab("customers")}>👥 Customers</button>
+        <button className={activeTab === "feedbacks" ? "tab-active" : "tab"} onClick={() => setActiveTab("feedbacks")}>💬 Feedbacks</button>
+        <button className={activeTab === "contact" ? "tab-active" : "tab"} onClick={() => setActiveTab("contact")}>📞 Contact Settings</button>
       </div>
 
       <div className="admin-container">
@@ -922,6 +1018,125 @@ const AdminDashboard = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "feedbacks" && (
+          <div className="admin-feedbacks-section">
+            <h3>Customer Feedbacks ({feedbacks.length})</h3>
+            <div className="table-responsive">
+              <table className="admin-table">
+                <thead>
+                  <tr><th>#</th><th>Name</th><th>Email</th><th>Message</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                  {feedbacks.length === 0 ? (
+                    <tr><td colSpan="5" className="no-data">No feedbacks yet</td></tr>
+                  ) : (
+                    feedbacks.map((fb, idx) => (
+                      <tr key={fb.id}>
+                        <td>{idx + 1}</td>
+                        <td>{fb.name}</td>
+                        <td>{fb.email}</td>
+                        <td>{fb.message}</td>
+                        <td>{fb.date || (fb.created_at ? new Date(fb.created_at).toLocaleDateString() : 'N/A')}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "contact" && (
+          <div className="admin-contact-section">
+            <h3>📞 Contact Information Management</h3>
+            <p className="section-subtitle">Update contact details that appear on the website</p>
+            
+            {!editContactMode ? (
+              <>
+                <div className="contact-info-display">
+                  <div className="contact-info-card">
+                    <div className="contact-info-item">
+                      <span className="contact-label">📞 Phone 1</span>
+                      <span className="contact-value">{contactInfo.phone1}</span>
+                    </div>
+                    <div className="contact-info-item">
+                      <span className="contact-label">📞 Phone 2</span>
+                      <span className="contact-value">{contactInfo.phone2}</span>
+                    </div>
+                    <div className="contact-info-item">
+                      <span className="contact-label">✉️ Email</span>
+                      <span className="contact-value">{contactInfo.email}</span>
+                    </div>
+                    <div className="contact-info-item">
+                      <span className="contact-label">📍 Address</span>
+                      <span className="contact-value">{contactInfo.address}</span>
+                    </div>
+                  </div>
+                  <button className="edit-contact-btn" onClick={() => {
+                    setEditContactMode(true);
+                    setContactFormData(contactInfo);
+                  }}>
+                    ✏️ Edit Contact Info
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="contact-edit-form">
+                <h4>Edit Contact Information</h4>
+                <div className="admin-form-grid">
+                  <div className="admin-field">
+                    <label>Phone Number 1 *</label>
+                    <input
+                      type="text"
+                      value={contactFormData.phone1}
+                      onChange={(e) => setContactFormData({...contactFormData, phone1: e.target.value})}
+                      placeholder="+91 7060998050"
+                    />
+                  </div>
+                  <div className="admin-field">
+                    <label>Phone Number 2</label>
+                    <input
+                      type="text"
+                      value={contactFormData.phone2}
+                      onChange={(e) => setContactFormData({...contactFormData, phone2: e.target.value})}
+                      placeholder="+91 7906396629"
+                    />
+                  </div>
+                  <div className="admin-field">
+                    <label>Email Address *</label>
+                    <input
+                      type="email"
+                      value={contactFormData.email}
+                      onChange={(e) => setContactFormData({...contactFormData, email: e.target.value})}
+                      placeholder="contact@email.com"
+                    />
+                  </div>
+                  <div className="admin-field full-width">
+                    <label>Address *</label>
+                    <textarea
+                      value={contactFormData.address}
+                      onChange={(e) => setContactFormData({...contactFormData, address: e.target.value})}
+                      rows="3"
+                      placeholder="Full address"
+                    />
+                  </div>
+                </div>
+                <div className="admin-form-buttons">
+                  <button className="admin-save-btn" onClick={saveContactInfo}>💾 Save Changes</button>
+                  <button className="admin-cancel-btn" onClick={() => {
+                    setEditContactMode(false);
+                    setContactFormData(contactInfo);
+                  }}>Cancel</button>
+                </div>
+              </div>
+            )}
+            
+            <div className="contact-info-note">
+              <p>💡 Changes will reflect immediately on the website's contact section.</p>
             </div>
           </div>
         )}

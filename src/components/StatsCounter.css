@@ -1,62 +1,95 @@
+/* ============================================
+   STATS COUNTER - PROFESSIONAL EQUAL BOXES
+   ============================================ */
+
 .stats-section {
-  background: linear-gradient(135deg, #263C28 0%, #1a2e1a 100%);
-  padding: 80px 20px;
-  position: relative;
+  padding: 70px 20px;
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.stats-container {
-  max-width: 1200px;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 25px;
+  max-width: 1100px;
   margin: 0 auto;
-  display: flex;
-  justify-content: space-around;
-  flex-wrap: wrap;
-  gap: 30px;
 }
 
-.stat-card {
-  text-align: center;
-  min-width: 200px;
-  padding: 25px 20px;
-  background: rgba(255, 255, 255, 0.1);
+.stat-box {
+  background: #f9f3e8;
   border-radius: 16px;
-  backdrop-filter: blur(8px);
-  transition: transform 0.3s ease;
+  padding: 30px 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid #e8ddd0;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
-.stat-card:hover {
+.stat-box:hover {
   transform: translateY(-5px);
-  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 30px rgba(139, 94, 60, 0.1);
+  border-color: #8B5E3C;
 }
 
 .stat-number {
-  font-family: 'Livvicsemibold';
-  font-size: 3rem;
-  color: #f1a40f;
-  margin-bottom: 10px;
+  font-size: 2.8rem;
   font-weight: 700;
+  color: #8B5E3C;
+  font-family: 'Livvicsemibold', sans-serif;
+  line-height: 1.2;
+}
+
+.stat-number .symbol {
+  font-size: 1.8rem;
 }
 
 .stat-label {
-  font-family: 'centurygothic';
   font-size: 1rem;
-  color: #ffffff;
+  color: #555;
+  margin-top: 8px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
-@media (max-width: 768px) {
-  .stats-section {
-    padding: 50px 15px;
+/* ===== RESPONSIVE ===== */
+@media (max-width: 968px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
+  .stat-box {
+    min-height: 120px;
+    padding: 25px 15px;
   }
   
   .stat-number {
     font-size: 2.2rem;
   }
-  
-  .stat-label {
-    font-size: 0.85rem;
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
   }
   
-  .stat-card {
-    min-width: 160px;
-    padding: 20px 15px;
+  .stat-box {
+    min-height: 100px;
+    padding: 15px 10px;
+  }
+  
+  .stat-number {
+    font-size: 1.8rem;
+  }
+  
+  .stat-label {
+    font-size: 0.8rem;
   }
 }

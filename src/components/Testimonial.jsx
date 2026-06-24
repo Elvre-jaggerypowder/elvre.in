@@ -1,84 +1,56 @@
-import React, { useEffect, useState } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay } from "swiper/modules";
-import "swiper/css";
+import React, { useState, useEffect } from "react";
 import "./Testimonial.css";
-
-import { supabase } from "../supabaseClient";
 
 const Testimonial = () => {
   const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchFeedbacks();
+    loadFeedbacks();
   }, []);
 
-  const fetchFeedbacks = async () => {
-    const { data, error } = await supabase
-      .from("Feedbacks")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(3);
-
-    if (error) {
-      console.log("Error fetching feedbacks:", error);
-    } else {
-      setFeedbacks(data);
-    }
+  const loadFeedbacks = () => {
+    const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+    setFeedbacks(saved);
+    setLoading(false);
   };
 
+  if (loading) {
+    return (
+      <section className="testimonial-section" id="testimonial">
+        <div className="testimonial-container">
+          <h2>Loading testimonials...</h2>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section
-      id="testimonial"
-      className="testimonial-container"
-      data-aos="fade-up"
-    >
-      <h2 className="testimonial-subheading">Our Testimonials</h2>
-
-      <h2 className="testimonial-heading">
-        WHAT THEY'RE TALKING ABOUT
-      </h2>
-
-      {feedbacks.length === 0 ? (
-        <p className="no-feedback-message">
-          No feedback available. Be the first to share your experience!
-        </p>
-      ) : (
-        <Swiper
-          modules={[Autoplay]}
-          autoplay={{
-            delay: 4000,
-            disableOnInteraction: false,
-          }}
-          loop={feedbacks.length > 1}
-          spaceBetween={30}
-          slidesPerView={1}
-        >
-          {feedbacks.map((item) => (
-            <SwiperSlide key={item.id}>
-              <div
-                className="testimonial-card"
-                data-aos="zoom-in"
-                data-aos-delay="100"
-              >
-                <p className="testimonial-message">
-                  "{item.message}"
-                </p>
-
-                <p className="testimonial-name">
-                  - {item.name}
-                </p>
-
-                {item.label && (
-                  <p className="testimonial-label">
-                    {item.label}
-                  </p>
-                )}
+    <section className="testimonial-section" id="testimonial">
+      <div className="testimonial-container">
+        <div className="testimonial-header">
+          <h2>OUR TESTIMONIALS</h2>
+          <p>WHAT THEY'RE TALKING ABOUT</p>
+        </div>
+        
+        <div className="testimonial-grid">
+          {feedbacks.length === 0 ? (
+            <div className="no-feedback">
+              <p>No feedback available. Be the first to share your experience!</p>
+            </div>
+          ) : (
+            feedbacks.map((feedback, index) => (
+              <div key={index} className="testimonial-card">
+                <p className="feedback-message">"{feedback.message}"</p>
+                <div className="feedback-author">
+                  <strong>{feedback.name || "Anonymous"}</strong>
+                  <span>{feedback.email}</span>
+                </div>
               </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
-      )}
+            ))
+          )}
+        </div>
+      </div>
     </section>
   );
 };

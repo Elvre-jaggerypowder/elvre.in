@@ -36,7 +36,6 @@ import { ContentProvider } from "./context/ContentContext";
 import BackToTop from "./components/BackToTop";
 import WhatsApp from "./components/WhatsApp";
 
-// Protected Route Component for Checkout
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem("currentUser");
   if (!isLoggedIn) {
@@ -45,6 +44,16 @@ const ProtectedRoute = ({ children }) => {
   }
   return children;
 };
+
+// ✅ LAYOUT WITHOUT FOOTER (Footer har page ke andar alag se aayega)
+const Layout = ({ children }) => (
+  <>
+    <Navbar />
+    {children}
+    <WhatsApp />
+    <BackToTop />
+  </>
+);
 
 function App() {
   useEffect(() => {
@@ -61,149 +70,39 @@ function App() {
       <ContentProvider>
         <Router>
           <Routes>
-            {/* Admin Routes - Without Navbar/Footer */}
+            {/* Admin Routes */}
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             
-            {/* Public Routes - With Navbar/Footer */}
-            <Route path="/" element={
-              <>
-                <Navbar />
-                <Home />
-                <Footer />
-                <WhatsApp />
-                <BackToTop />
-              </>
-            } />
-            
-            <Route path="/products" element={
-              <>
-                <Navbar />
-                <ProductsPage />
-                <Footer />
-                <WhatsApp />
-              </>
-            } />
-            
-            <Route path="/product/:id" element={
-              <>
-                <Navbar />
-                <ProductDetails />
-                <Footer />
-                <WhatsApp />
-              </>
-            } />
-            
-            <Route path="/cart" element={
-              <>
-                <Navbar />
-                <Cart />
-                <Footer />
-                <WhatsApp />
-              </>
-            } />
-            
-            {/* My Orders Route - Protected */}
-            <Route path="/my-orders" element={
-              <ProtectedRoute>
-                <>
-                  <Navbar />
-                  <OrdersPage />
-                  <Footer />
-                </>
-              </ProtectedRoute>
-            } />
-            
-            {/* User Profile Route - Protected */}
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <>
-                  <Navbar />
-                  <UserProfile />
-                  <Footer />
-                </>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/our-story" element={
-              <>
-                <Navbar />
-                <OurStory />
-                <Footer />
-              </>
-            } />
-            
-            <Route path="/blog" element={
-              <>
-                <Navbar />
-                <Blog />
-                <Footer />
-              </>
-            } />
-            
-            <Route path="/contact" element={
-              <>
-                <Navbar />
-                <Contact />
-                <Footer />
-              </>
-            } />
-            
-            <Route path="/terms" element={
-              <>
-                <Navbar />
-                <TermsAndConditions />
-                <Footer />
-              </>
-            } />
-            
-            <Route path="/privacy" element={
-              <>
-                <Navbar />
-                <PrivacyPolicy />
-                <Footer />
-              </>
-            } />
+            {/* Public Routes */}
+            <Route path="/" element={<Layout><Home /></Layout>} />
+            <Route path="/products" element={<Layout><ProductsPage /></Layout>} />
+            <Route path="/product/:id" element={<Layout><ProductDetails /></Layout>} />
+            <Route path="/cart" element={<Layout><Cart /></Layout>} />
+            <Route path="/our-story" element={<Layout><OurStory /></Layout>} />
+            <Route path="/blog" element={<Layout><Blog /></Layout>} />
+            <Route path="/contact" element={<Layout><Contact /></Layout>} />
+            <Route path="/terms" element={<Layout><TermsAndConditions /></Layout>} />
+            <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
             
             {/* Auth Routes */}
-            <Route path="/login" element={
-              <>
-                <Navbar />
-                <UserLogin />
-                <Footer />
-              </>
-            } />
+            <Route path="/login" element={<Layout><UserLogin /></Layout>} />
+            <Route path="/signup" element={<Layout><UserSignup /></Layout>} />
             
-            <Route path="/signup" element={
-              <>
-                <Navbar />
-                <UserSignup />
-                <Footer />
-              </>
+            {/* Protected Routes */}
+            <Route path="/my-orders" element={
+              <ProtectedRoute><Layout><OrdersPage /></Layout></ProtectedRoute>
             } />
-            
-            {/* Protected Routes (Require Login) */}
+            <Route path="/profile" element={
+              <ProtectedRoute><Layout><UserProfile /></Layout></ProtectedRoute>
+            } />
             <Route path="/checkout" element={
-              <ProtectedRoute>
-                <>
-                  <Navbar />
-                  <Checkout />
-                  <Footer />
-                </>
-              </ProtectedRoute>
+              <ProtectedRoute><Layout><Checkout /></Layout></ProtectedRoute>
             } />
-            
             <Route path="/order-tracking/:orderId" element={
-              <ProtectedRoute>
-                <>
-                  <Navbar />
-                  <OrderTracking />
-                  <Footer />
-                </>
-              </ProtectedRoute>
+              <ProtectedRoute><Layout><OrderTracking /></Layout></ProtectedRoute>
             } />
             
-            {/* Catch all - redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
