@@ -45,7 +45,7 @@ const SearchBar = () => {
       <form onSubmit={handleSearch} className="search-form">
         <input
           type="text"
-          placeholder="Search products... (e.g., Jaggery, Palm, Organic)"
+          placeholder="Search products..."
           value={searchTerm}
           onChange={handleInputChange}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
@@ -53,7 +53,7 @@ const SearchBar = () => {
           className="search-input"
         />
         <button type="submit" className="search-button">
-          🔍 Search
+          Search
         </button>
       </form>
       
@@ -62,10 +62,8 @@ const SearchBar = () => {
           {suggestions.map((product) => (
             <div key={product.id} onClick={() => selectSuggestion(product)} className="suggestion-item">
               <img src={product.image || "/assets/jaggery.png"} alt={product.name} />
-              <div>
-                <strong>{product.name}</strong>
-                <span>{product.price}</span>
-              </div>
+              <strong>{product.name}</strong>
+              <span>{product.price}</span>
             </div>
           ))}
         </div>

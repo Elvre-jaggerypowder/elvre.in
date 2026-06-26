@@ -1,63 +1,65 @@
-/* ========== GLOBAL RESET – FIX BLANK SCREEN ========== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ============================================
+   THEME COLORS - GREEN + BROWN
+   ============================================ */
+
+:root {
+  --primary-green: #1a2e1e;
+  --primary-green-light: #2a4a2e;
+  --primary-brown: #8B5E3C;
+  --primary-brown-light: #a87a54;
+  --primary-brown-dark: #6d4a2e;
+  --gold: #f1a40f;
+  --gold-dark: #d4910e;
+  --white: #ffffff;
+  --light-bg: #f9f3e8;
+  --gray-light: #f5f5f5;
 }
 
-html, body {
-  width: 100%;
-  min-height: 100vh;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
-  background: #fffdf8;   /* warm off-white background – visible immediately */
-}
-
-body {
-  font-family: 'Quicksand', 'centurygothic', sans-serif;
-  color: #1e2a1e;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Ensure all sections are visible and not hidden */
-section {
-  position: relative;
-  width: 100%;
-  overflow-x: hidden;
-}
-
-/* Fix AOS initial opacity – no white flash */
-[data-aos] {
-  pointer-events: auto !important;
-  opacity: 1 !important;  /* override AOS temporary opacity */
-}
-
-/* Remove any accidental hidden elements */
-body * {
-  visibility: visible;
-  opacity: 1;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-button {
+/* ===== BUTTONS ===== */
+.btn-primary {
+  background: var(--primary-brown);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 30px;
   cursor: pointer;
-  font-family: inherit;
+  transition: all 0.3s;
 }
 
-/* Smooth anchor scroll with fixed navbar */
-html {
-  scroll-padding-top: 80px;
+.btn-primary:hover {
+  background: var(--primary-brown-dark);
+  transform: translateY(-2px);
 }
 
-/* Better touch targets for mobile/ios */
-@media (pointer: coarse) {
-  button, a, .nav-link-btn {
-    min-height: 44px;
-  }
+.btn-secondary {
+  background: var(--gold);
+  color: var(--primary-green);
+  border: none;
+  padding: 12px 30px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: var(--gold-dark);
+  transform: translateY(-2px);
+}
+
+/* ===== SECTION HEADERS ===== */
+.section-title {
+  color: var(--primary-green);
+  font-size: 2.2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.section-subtitle {
+  color: var(--primary-brown);
+  font-size: 1rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
 }

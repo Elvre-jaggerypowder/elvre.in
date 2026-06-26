@@ -1,3 +1,24 @@
+/* ===== BACK BUTTON ===== */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #8B5E3C;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: all 0.3s;
+  font-family: inherit;
+  margin-bottom: 10px;
+}
+
+.back-btn:hover {
+  color: #6d4a2e;
+  transform: translateX(-3px);
+}
 .product-detail-page {
   min-height: 100vh;
   background: #f5f7fa;

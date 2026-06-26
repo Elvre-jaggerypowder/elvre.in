@@ -1,206 +1,217 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
 import { supabase } from '../supabaseClient';
-import SuccessNotification from "./SuccessNotification";
-import "./ProductDetails.css";
+import "./ProductsPage.css";
 
-const ProductDetails = () => {
-  const { id } = useParams();
+const ProductsPage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
-  const [product, setProduct] = useState(null);
-  const [reviews, setReviews] = useState([]);
-  const [newReview, setNewReview] = useState({ rating: 5, comment: "", name: "" });
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState("description");
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [relatedProducts, setRelatedProducts] = useState([]);
-  const [showNotification, setShowNotification] = useState(false);
-  const [notificationMessage, setNotificationMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
+  const [sortBy, setSortBy] = useState("default");
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
+  const [reviews, setReviews] = useState({});
 
-  const productImages = [
-    "/assets/jaggery.png",
-    "/assets/productpacking.png",
-    "/assets/bowl.png"
+  const categories = [
+    { id: "all", name: "All Products", icon: "📦" },
+    { id: "jaggery", name: "Jaggery", icon: "🍯" },
+    { id: "organic", name: "Organic", icon: "🌱" },
+    { id: "special", name: "Special", icon: "⭐" }
   ];
 
   useEffect(() => {
-    loadProduct();
+    loadProducts();
     loadReviews();
-    window.addEventListener("productsUpdated", loadProduct);
-    return () => window.removeEventListener("productsUpdated", loadProduct);
-  }, [id]);
+    window.addEventListener("productsUpdated", loadProducts);
+    return () => window.removeEventListener("productsUpdated", loadProducts);
+  }, []);
 
-  const loadProduct = () => {
-    const savedProducts = localStorage.getItem("elvreProducts");
-    if (savedProducts) {
-      const products = JSON.parse(savedProducts);
-      const foundProduct = products.find(p => p.id === parseInt(id));
-      
-      if (foundProduct) {
-        foundProduct.enhancedInfo = {
-          brand: "ELVRE Enterprises",
-          origin: "Made in India",
-          certification: "FSSAI Certified, Organic Certified",
-          shelfLife: "12 months",
-          weight: "500g"
-        };
-        foundProduct.nutritionalInfo = {
-          calories: "38 kcal",
-          totalFat: "0g",
-          sodium: "2mg",
-          carbohydrates: "9.8g",
-          sugars: "9.5g",
-          protein: "0.1g",
-          iron: "2.5mg (14% DV)",
-          calcium: "8mg (1% DV)"
-        };
-        foundProduct.ingredients = ["Organic Sugarcane", "No Chemicals", "Natural Minerals"];
-        foundProduct.healthBenefits = [
-          "Rich in Iron - Helps prevent anemia",
-          "Digestive Health - Aids digestion naturally",
-          "Natural Detoxifier - Cleanses the body",
-          "Energy Booster - Provides instant energy"
-        ];
-        foundProduct.usageInstructions = [
-          "As a sweetener in tea, coffee, and milk",
-          "In desserts like kheer, halwa, and laddoos",
-          "For making traditional sweets and snacks",
-          "As a natural substitute for white sugar"
-        ];
-        
-        setProduct(foundProduct);
-        
-        const related = products.filter(p => p.category === foundProduct.category && p.id !== foundProduct.id).slice(0, 4);
-        setRelatedProducts(related);
+  // Auto view mode based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setViewMode("list");
+      } else {
+        setViewMode("grid");
       }
+    };
+    
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+    if (search) setSearchQuery(search);
+  }, [location.search]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
+
+  const loadProducts = async () => {
+    try {
+      const { data: supabaseProducts, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedProducts = localStorage.getItem("elvreProducts");
+        if (savedProducts) {
+          setProducts(JSON.parse(savedProducts));
+        } else {
+          setDefaultProducts();
+        }
+      } else if (supabaseProducts && supabaseProducts.length > 0) {
+        const formattedProducts = supabaseProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: `₹${p.price}`,
+          priceValue: p.price,
+          stock: p.stock,
+          image: p.image,
+          category: p.category,
+          badge: p.badge,
+          soldCount: p.sold_count || 0
+        }));
+        setProducts(formattedProducts);
+        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+      } else {
+        setDefaultProducts();
+      }
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setDefaultProducts();
     }
     setLoading(false);
   };
 
-  const loadReviews = async () => {
-    try {
-      const { data: supabaseReviews, error } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('product_id', parseInt(id))
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const savedReviews = localStorage.getItem(`reviews_${id}`);
-        if (savedReviews) {
-          setReviews(JSON.parse(savedReviews));
-        } else {
-          const demoReviews = [
-            {
-              id: 1,
-              name: "Rahul Sharma",
-              rating: 5,
-              comment: "Excellent quality! Very happy with the purchase. The taste is authentic and natural.",
-              date: "2024-05-15",
-              verified: true
-            },
-            {
-              id: 2,
-              name: "Priya Patel",
-              rating: 4,
-              comment: "Good product, packaging could be better. But overall satisfied.",
-              date: "2024-05-10",
-              verified: true
-            }
-          ];
-          setReviews(demoReviews);
-          localStorage.setItem(`reviews_${id}`, JSON.stringify(demoReviews));
-        }
-      } else if (supabaseReviews && supabaseReviews.length > 0) {
-        setReviews(supabaseReviews);
-        localStorage.setItem(`reviews_${id}`, JSON.stringify(supabaseReviews));
-      } else {
-        const savedReviews = localStorage.getItem(`reviews_${id}`);
-        if (savedReviews) {
-          setReviews(JSON.parse(savedReviews));
-        } else {
-          const demoReviews = [
-            {
-              id: 1,
-              name: "Rahul Sharma",
-              rating: 5,
-              comment: "Excellent quality! Very happy with the purchase.",
-              date: "2024-05-15",
-              verified: true
-            },
-            {
-              id: 2,
-              name: "Priya Patel",
-              rating: 4,
-              comment: "Good product, packaging could be better.",
-              date: "2024-05-10",
-              verified: true
-            }
-          ];
-          setReviews(demoReviews);
-          localStorage.setItem(`reviews_${id}`, JSON.stringify(demoReviews));
-        }
+  const setDefaultProducts = () => {
+    const defaultProducts = [
+      {
+        id: 1,
+        name: "ELVRE Organic Jaggery Powder",
+        description: "500g - Chemical Free, Natural Sweetener. Rich in iron and minerals.",
+        price: "₹149",
+        priceValue: 149,
+        stock: 50,
+        image: "/assets/jaggery.png",
+        category: "jaggery",
+        badge: "Bestseller",
+        soldCount: 0
+      },
+      {
+        id: 2,
+        name: "ELVRE Palm Jaggery",
+        description: "500g - Rich in Minerals. Made from fresh palm sap.",
+        price: "₹199",
+        priceValue: 199,
+        stock: 35,
+        image: "/assets/productpacking.png",
+        category: "jaggery",
+        badge: "Popular",
+        soldCount: 0
+      },
+      {
+        id: 3,
+        name: "ELVRE Gift Pack",
+        description: "500g x 2 - Special Edition. Perfect for gifting.",
+        price: "₹299",
+        priceValue: 299,
+        stock: 20,
+        image: "/assets/bowl.png",
+        category: "special",
+        badge: "Limited",
+        soldCount: 0
       }
-    } catch (err) {
-      console.error('Error loading reviews:', err);
-    }
+    ];
+    setProducts(defaultProducts);
+    localStorage.setItem("elvreProducts", JSON.stringify(defaultProducts));
   };
 
-  const submitReview = async (e) => {
-    e.preventDefault();
-    if (!newReview.name || !newReview.comment) {
-      setNotificationMessage("Please fill all fields");
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3000);
-      return;
-    }
-
-    const review = {
-      id: Date.now(),
-      product_id: parseInt(id),
-      product_name: product?.name,
-      name: newReview.name,
-      rating: newReview.rating,
-      comment: newReview.comment,
-      date: new Date().toISOString().split('T')[0],
-      verified: false,
-      approved: false,
-      spam: false,
-      created_at: new Date().toISOString()
-    };
-
-    try {
-      const { error } = await supabase
-        .from('reviews')
-        .insert([review]);
-      if (error) console.error('Supabase error:', error);
-    } catch (err) {
-      console.error('Error saving to Supabase:', err);
-    }
-
-    const updatedReviews = [review, ...reviews];
-    setReviews(updatedReviews);
-    localStorage.setItem(`reviews_${id}`, JSON.stringify(updatedReviews));
-    setNewReview({ rating: 5, comment: "", name: "" });
-    
-    setNotificationMessage("Thank you! Your review has been submitted.");
-    setShowNotification(true);
-    setTimeout(() => setShowNotification(false), 3000);
+  const loadReviews = () => {
+    const savedReviews = {};
+    products.forEach(product => {
+      const productReviews = localStorage.getItem(`reviews_${product.id}`);
+      if (productReviews) {
+        const reviewList = JSON.parse(productReviews);
+        const avgRating = reviewList.reduce((sum, r) => sum + r.rating, 0) / reviewList.length;
+        savedReviews[product.id] = { rating: avgRating.toFixed(1), count: reviewList.length };
+      } else {
+        savedReviews[product.id] = { rating: 4.5, count: 0 };
+      }
+    });
+    setReviews(savedReviews);
+    console.log('Reviews loaded:', savedReviews);
   };
 
-  const addToCart = () => {
+  const applyFilters = () => {
+    let filtered = [...products];
+
+    if (searchQuery) {
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(product => product.category === selectedCategory);
+    }
+
+    filtered = filtered.filter(product =>
+      product.priceValue >= priceRange.min && product.priceValue <= priceRange.max
+    );
+
+    switch (sortBy) {
+      case "price-low-high":
+        filtered.sort((a, b) => a.priceValue - b.priceValue);
+        break;
+      case "price-high-low":
+        filtered.sort((a, b) => b.priceValue - a.priceValue);
+        break;
+      case "rating":
+        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        break;
+      case "name-asc":
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      default:
+        filtered.sort((a, b) => a.id - b.id);
+    }
+
+    setFilteredProducts(filtered);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setPriceRange({ min: 0, max: 1000 });
+    setSortBy("default");
+    navigate("/products");
+  };
+
+  const addToCart = (product) => {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find(item => item.id === product.id);
     
     if (existingItem) {
-      existingItem.quantity += quantity;
+      existingItem.quantity = (existingItem.quantity || 1) + 1;
     } else {
-      cart.push({ ...product, quantity });
+      cart.push({ ...product, quantity: 1 });
     }
     
     localStorage.setItem("cart", JSON.stringify(cart));
@@ -208,279 +219,228 @@ const ProductDetails = () => {
     
     const toast = document.createElement("div");
     toast.className = "cart-toast";
-    toast.innerHTML = "✓ Added to cart!";
+    toast.innerHTML = `✓ ${product.name} added to cart!`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
   };
 
-  const buyNow = () => {
-    addToCart();
-    const user = localStorage.getItem("currentUser");
-    if (!user) {
-      localStorage.setItem("redirectAfterLogin", "/checkout");
-      navigate("/login");
-    } else {
-      navigate("/checkout");
-    }
+  const getCategoryCount = (categoryId) => {
+    if (categoryId === "all") return products.length;
+    return products.filter(p => p.category === categoryId).length;
   };
 
-  const getAverageRating = () => {
-    if (reviews.length === 0) return 0;
-    const sum = reviews.reduce((acc, rev) => acc + rev.rating, 0);
-    return (sum / reviews.length).toFixed(1);
-  };
-
-  if (loading) return <div className="loading">Loading...</div>;
-  if (!product) return <div className="not-found">Product not found</div>;
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="products-loading">Loading amazing products...</div>
+        <Footer />
+        <WhatsApp />
+      </>
+    );
+  }
 
   return (
     <>
       <Navbar />
-      <div className="product-detail-page">
-        <div className="product-detail-container">
-          <div className="breadcrumb">
-            <span onClick={() => navigate("/")}>Home</span> / 
-            <span onClick={() => navigate("/products")}>Products</span> / 
-            <span>{product.name}</span>
+      <div className="products-page">
+        <div className="products-container">
+          {/* Hero Banner */}
+          <div className="products-hero">
+            <h1>Our Premium Collection</h1>
+            <p>Discover the finest quality jaggery and organic sweeteners</p>
           </div>
 
-          <div className="product-detail-grid">
-            <div className="product-gallery">
-              <div className="main-image">
-                <img src={productImages[selectedImage]} alt={product.name} />
-              </div>
-              <div className="thumbnail-list">
-                {productImages.map((img, idx) => (
-                  <img
-                    key={idx}
-                    src={img}
-                    alt={`View ${idx + 1}`}
-                    className={`thumbnail ${selectedImage === idx ? "active" : ""}`}
-                    onClick={() => setSelectedImage(idx)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="product-info-section">
-              <h1>{product.name}</h1>
-              
-              <div className="rating-section">
-                <div className="stars">
-                  {"★".repeat(Math.floor(getAverageRating()))}
-                  {"☆".repeat(5 - Math.floor(getAverageRating()))}
-                </div>
-                <span className="review-count">{reviews.length} reviews</span>
-                <span className="verified">✓ Verified Seller</span>
-              </div>
-
-              <div className="price-section">
-                <span className="current-price">{product.price}</span>
-                <span className="original-price">₹{Math.round(product.priceValue * 1.2)}</span>
-                <span className="discount-badge">Save {Math.round(product.priceValue * 0.2)}₹</span>
-              </div>
-
-              <div className="certifications">
-                <span className="cert-badge">✓ FSSAI Certified</span>
-                <span className="cert-badge">✓ Organic Certified</span>
-                <span className="cert-badge">✓ Lab Tested</span>
-              </div>
-
-              <div className="stock-status">
-                {product.stock > 0 ? (
-                  <span className="in-stock">✓ In Stock ({product.stock} units available)</span>
-                ) : (
-                  <span className="out-of-stock">✗ Out of Stock</span>
-                )}
-              </div>
-
-              {product.stock > 0 && (
-                <>
-                  <div className="quantity-selector">
-                    <label>Quantity:</label>
-                    <div className="quantity-controls">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
-                      <span>{quantity}</span>
-                      <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}>+</button>
-                    </div>
-                    <span className="stock-info">{product.stock} units available</span>
-                  </div>
-
-                  <div className="action-buttons">
-                    <button className="add-cart-btn" onClick={addToCart}>Add to Cart</button>
-                    <button className="buy-now-btn" onClick={buyNow}>Buy Now</button>
-                  </div>
-                </>
+          {/* Search Bar */}
+          <div className="products-search-wrapper">
+            <div className="products-search-bar">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search products by name or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="clear-search">✕</button>
               )}
-
-              <div className="delivery-info">
-                <div className="delivery-item">
-                  <span className="delivery-icon">🚚</span>
-                  <div>
-                    <strong>Free Delivery</strong>
-                    <p>On orders above ₹499</p>
-                  </div>
-                </div>
-                <div className="delivery-item">
-                  <span className="delivery-icon">🔄</span>
-                  <div>
-                    <strong>7-Day Return Policy</strong>
-                    <p>Easy returns within 7 days</p>
-                  </div>
-                </div>
-                <div className="delivery-item">
-                  <span className="delivery-icon">💳</span>
-                  <div>
-                    <strong>Secure Payment</strong>
-                    <p>100% safe checkout</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
-          <div className="product-tabs">
-            <button className={`tab-btn ${activeTab === "description" ? "active" : ""}`} onClick={() => setActiveTab("description")}>Description</button>
-            <button className={`tab-btn ${activeTab === "ingredients" ? "active" : ""}`} onClick={() => setActiveTab("ingredients")}>Ingredients</button>
-            <button className={`tab-btn ${activeTab === "nutrition" ? "active" : ""}`} onClick={() => setActiveTab("nutrition")}>Nutrition</button>
-            <button className={`tab-btn ${activeTab === "benefits" ? "active" : ""}`} onClick={() => setActiveTab("benefits")}>Benefits</button>
-            <button className={`tab-btn ${activeTab === "usage" ? "active" : ""}`} onClick={() => setActiveTab("usage")}>How to Use</button>
-            <button className={`tab-btn ${activeTab === "reviews" ? "active" : ""}`} onClick={() => setActiveTab("reviews")}>Reviews ({reviews.length})</button>
-          </div>
+          {/* Filter Toggle for Mobile */}
+          <button className="filter-toggle-btn" onClick={() => setShowFilters(!showFilters)}>
+            {showFilters ? "▲ Hide Filters" : "▼ Show Filters"}
+          </button>
 
-          <div className="tab-content">
-            {activeTab === "description" && (
-              <div className="tab-pane">
-                <p>{product.description}</p>
-                <div className="info-grid">
-                  <div><strong>Brand:</strong> {product.enhancedInfo.brand}</div>
-                  <div><strong>Origin:</strong> {product.enhancedInfo.origin}</div>
-                  <div><strong>Shelf Life:</strong> {product.enhancedInfo.shelfLife}</div>
-                  <div><strong>Weight:</strong> {product.enhancedInfo.weight}</div>
-                </div>
+          <div className="products-layout">
+            {/* Filters Sidebar */}
+            <div className={`filters-sidebar ${showFilters ? "active" : ""}`}>
+              <div className="filter-header">
+                <h3>Filters</h3>
+                <button className="reset-filters" onClick={clearFilters}>Reset</button>
+                <button className="filter-close-btn" onClick={() => setShowFilters(false)}>✕</button>
               </div>
-            )}
 
-            {activeTab === "ingredients" && (
-              <div className="tab-pane">
-                <ul className="ingredients-list">
-                  {product.ingredients.map((ing, i) => <li key={i}>✓ {ing}</li>)}
-                </ul>
-              </div>
-            )}
-
-            {activeTab === "nutrition" && (
-              <div className="tab-pane">
-                <table className="nutrition-table">
-                  <tbody>
-                    <tr><td>Calories</td><td>{product.nutritionalInfo.calories}</td></tr>
-                    <tr><td>Total Fat</td><td>{product.nutritionalInfo.totalFat}</td></tr>
-                    <tr><td>Sodium</td><td>{product.nutritionalInfo.sodium}</td></tr>
-                    <tr><td>Carbohydrates</td><td>{product.nutritionalInfo.carbohydrates}</td></tr>
-                    <tr><td>Sugars</td><td>{product.nutritionalInfo.sugars}</td></tr>
-                    <tr><td>Protein</td><td>{product.nutritionalInfo.protein}</td></tr>
-                    <tr><td>Iron</td><td>{product.nutritionalInfo.iron}</td></tr>
-                    <tr><td>Calcium</td><td>{product.nutritionalInfo.calcium}</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {activeTab === "benefits" && (
-              <div className="tab-pane">
-                <div className="benefits-grid">
-                  {product.healthBenefits.map((benefit, i) => (
-                    <div key={i} className="benefit-card">
-                      <span className="benefit-icon">✨</span>
-                      <p>{benefit}</p>
-                    </div>
+              {/* Categories */}
+              <div className="filter-group">
+                <h4>Categories</h4>
+                <div className="category-list">
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      className={`category-chip ${selectedCategory === cat.id ? "active" : ""}`}
+                      onClick={() => setSelectedCategory(cat.id)}
+                    >
+                      <span className="cat-icon">{cat.icon}</span>
+                      <span className="cat-name">{cat.name}</span>
+                      <span className="cat-count">{getCategoryCount(cat.id)}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
 
-            {activeTab === "usage" && (
-              <div className="tab-pane">
-                <ul className="usage-list">
-                  {product.usageInstructions.map((instruction, i) => (
-                    <li key={i}>
-                      <span className="step-number">{i + 1}</span>
-                      {instruction}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {activeTab === "reviews" && (
-              <div className="tab-pane">
-                <div className="reviews-summary">
-                  <div className="avg-rating">
-                    <div className="big-rating">{getAverageRating()}</div>
-                    <div className="stars">{"★".repeat(Math.floor(getAverageRating()))}</div>
-                    <div className="total-reviews">{reviews.length} reviews</div>
+              {/* Price Range */}
+              <div className="filter-group">
+                <h4>Price Range</h4>
+                <div className="price-range-display">
+                  <span>₹{priceRange.min}</span>
+                  <div className="price-slider-track">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1000"
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) })}
+                      className="price-slider"
+                      style={{
+                        background: `linear-gradient(to right, #8B5E3C 0%, #8B5E3C ${(priceRange.max / 1000) * 100}%, #ddd ${(priceRange.max / 1000) * 100}%, #ddd 100%)`
+                      }}
+                    />
                   </div>
-                  
-                  <div className="write-review">
-                    <h3>Write a Review</h3>
-                    <form onSubmit={submitReview}>
-                      <input type="text" placeholder="Your Name" value={newReview.name} onChange={(e) => setNewReview({...newReview, name: e.target.value})} required />
-                      <select value={newReview.rating} onChange={(e) => setNewReview({...newReview, rating: parseInt(e.target.value)})}>
-                        <option value={5}>★★★★★ (5)</option>
-                        <option value={4}>★★★★☆ (4)</option>
-                        <option value={3}>★★★☆☆ (3)</option>
-                        <option value={2}>★★☆☆☆ (2)</option>
-                        <option value={1}>★☆☆☆☆ (1)</option>
-                      </select>
-                      <textarea placeholder="Your review..." rows="4" value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} required />
-                      <button type="submit">Submit Review</button>
-                    </form>
-                  </div>
+                  <span>₹{priceRange.max}</span>
                 </div>
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange({ ...priceRange, min: parseInt(e.target.value) || 0 })}
+                    className="price-input"
+                  />
+                  <span className="price-dash">—</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) || 1000 })}
+                    className="price-input"
+                  />
+                </div>
+              </div>
 
-                <div className="reviews-list">
-                  {reviews.map(review => (
-                    <div key={review.id} className="review-item">
-                      <div className="review-header">
-                        <strong>{review.name}</strong>
-                        {review.verified && <span className="verified-badge">✓ Verified Purchase</span>}
-                        <div className="review-stars">{"★".repeat(review.rating)}</div>
-                        <span className="review-date">{review.date}</span>
+              {/* Sort By */}
+              <div className="filter-group">
+                <h4>Sort By</h4>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sort-select">
+                  <option value="default">Default</option>
+                  <option value="price-low-high">Price: Low to High</option>
+                  <option value="price-high-low">Price: High to Low</option>
+                  <option value="rating">Top Rated</option>
+                  <option value="name-asc">Name: A to Z</option>
+                </select>
+              </div>
+
+              {/* Apply Filters Button */}
+              <button className="apply-filters-btn" onClick={() => setShowFilters(false)}>
+                Apply Filters
+              </button>
+            </div>
+
+            {/* Products Grid */}
+            <div className="products-grid">
+              <div className="products-header-bar">
+                <p>{filteredProducts.length} products found</p>
+                <div className="view-options">
+                  <button 
+                    className={`view-btn ${viewMode === "grid" ? "active" : ""}`}
+                    onClick={() => setViewMode("grid")}
+                    title="Grid View"
+                  >
+                    ⊞
+                  </button>
+                  <button 
+                    className={`view-btn ${viewMode === "list" ? "active" : ""}`}
+                    onClick={() => setViewMode("list")}
+                    title="List View"
+                  >
+                    ☰
+                  </button>
+                </div>
+              </div>
+
+              {filteredProducts.length === 0 ? (
+                <div className="no-products">
+                  <div className="no-products-icon">🔍</div>
+                  <h3>No products found</h3>
+                  <p>Try adjusting your search or filter criteria</p>
+                  <button onClick={clearFilters} className="reset-btn">Reset Filters</button>
+                </div>
+              ) : (
+                <div className={`products-grid-list ${viewMode === "list" ? "list-view" : "grid-view"}`}>
+                  {filteredProducts.map((product) => (
+                    <div key={product.id} className="product-card">
+                      {product.badge && (
+                        <span className={`product-badge ${product.badge.toLowerCase()}`}>{product.badge}</span>
+                      )}
+                      <div className="product-image" onClick={() => navigate(`/product/${product.id}`)}>
+                        <img src={product.image || "/assets/jaggery.png"} alt={product.name} />
+                        <div className="product-overlay">
+                          <button className="quick-view" onClick={() => navigate(`/product/${product.id}`)}>
+                            Quick View
+                          </button>
+                        </div>
                       </div>
-                      <p className="review-comment">{review.comment}</p>
+                      <div className="product-info">
+                        <h3 onClick={() => navigate(`/product/${product.id}`)}>{product.name}</h3>
+                        <div className="product-rating">
+                          <div className="stars">
+                            {"★".repeat(Math.floor(reviews[product.id]?.rating || 4))}
+                            {"☆".repeat(5 - Math.floor(reviews[product.id]?.rating || 4))}
+                          </div>
+                          <span>({reviews[product.id]?.count || 0} reviews)</span>
+                        </div>
+                        <p className="product-description">{product.description.substring(0, 80)}...</p>
+                        <div className="product-price">
+                          <span className="current-price">{product.price}</span>
+                          <span className="original-price">₹{Math.round(product.priceValue * 1.2)}</span>
+                          <span className="discount">Save {Math.round(product.priceValue * 0.2)}₹</span>
+                        </div>
+                        <div className="stock-status">
+                          {product.stock > 0 ? (
+                            <span className="in-stock">✓ In Stock ({product.stock} left)</span>
+                          ) : (
+                            <span className="out-of-stock">✗ Out of Stock</span>
+                          )}
+                        </div>
+                        <div className="product-actions">
+                          <button className="view-details" onClick={() => navigate(`/product/${product.id}`)}>
+                            View Details
+                          </button>
+                          <button className="add-to-cart" onClick={() => addToCart(product)} disabled={product.stock === 0}>
+                            Add to Cart
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-
-          {relatedProducts.length > 0 && (
-            <div className="related-products">
-              <h3>You May Also Like</h3>
-              <div className="related-grid">
-                {relatedProducts.map(related => (
-                  <div key={related.id} className="related-card" onClick={() => navigate(`/product/${related.id}`)}>
-                    <img src={related.image || "/assets/jaggery.png"} alt={related.name} />
-                    <h4>{related.name}</h4>
-                    <p>{related.price}</p>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
       <Footer />
       <WhatsApp />
-      
-      {showNotification && (
-        <SuccessNotification 
-          message={notificationMessage} 
-          onClose={() => setShowNotification(false)}
-        />
-      )}
-      
       <style>{`
         .cart-toast {
           position: fixed;
@@ -491,16 +451,16 @@ const ProductDetails = () => {
           padding: 12px 24px;
           border-radius: 30px;
           z-index: 10000;
-          animation: slideIn 0.3s ease;
+          animation: slideInRight 0.3s ease;
           box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
-        @keyframes slideIn {
+        @keyframes slideInRight {
           from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(0%); opacity: 1; }
         }
       `}</style>
     </>
   );
 };
 
-export default ProductDetails;
+export default ProductsPage;

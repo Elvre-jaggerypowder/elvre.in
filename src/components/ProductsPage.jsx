@@ -17,6 +17,7 @@ const ProductsPage = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 1000 });
   const [sortBy, setSortBy] = useState("default");
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
   const [reviews, setReviews] = useState({});
 
   const categories = [
@@ -33,6 +34,21 @@ const ProductsPage = () => {
     return () => window.removeEventListener("productsUpdated", loadProducts);
   }, []);
 
+  // ✅ Auto view mode based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setViewMode("list");
+      } else {
+        setViewMode("grid");
+      }
+    };
+    
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const search = params.get("search");
@@ -44,46 +60,44 @@ const ProductsPage = () => {
   }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
 
   const loadProducts = async () => {
-  try {
-    // ✅ Always fetch latest stock from Supabase
-    const { data: supabaseProducts, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('id', { ascending: true });
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      const savedProducts = localStorage.getItem("elvreProducts");
-      if (savedProducts) {
-        setProducts(JSON.parse(savedProducts));
+    try {
+      const { data: supabaseProducts, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        const savedProducts = localStorage.getItem("elvreProducts");
+        if (savedProducts) {
+          setProducts(JSON.parse(savedProducts));
+        } else {
+          setDefaultProducts();
+        }
+      } else if (supabaseProducts && supabaseProducts.length > 0) {
+        const formattedProducts = supabaseProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: `₹${p.price}`,
+          priceValue: p.price,
+          stock: p.stock,
+          image: p.image,
+          category: p.category,
+          badge: p.badge,
+          soldCount: p.sold_count || 0
+        }));
+        setProducts(formattedProducts);
+        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
       } else {
         setDefaultProducts();
       }
-    } else if (supabaseProducts && supabaseProducts.length > 0) {
-      console.log('Products from Supabase:', supabaseProducts);
-      const formattedProducts = supabaseProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: `₹${p.price}`,
-        priceValue: p.price,
-        stock: p.stock,  // ✅ This will show updated stock
-        image: p.image,
-        category: p.category,
-        badge: p.badge,
-        soldCount: p.sold_count || 0
-      }));
-      setProducts(formattedProducts);
-      localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
-    } else {
+    } catch (err) {
+      console.error('Error loading products:', err);
       setDefaultProducts();
     }
-  } catch (err) {
-    console.error('Error loading products:', err);
-    setDefaultProducts();
-  }
-  setLoading(false);
-};
+    setLoading(false);
+  };
 
   const setDefaultProducts = () => {
     const defaultProducts = [
@@ -230,11 +244,13 @@ const ProductsPage = () => {
       <Navbar />
       <div className="products-page">
         <div className="products-container">
+          {/* Hero Banner */}
           <div className="products-hero">
             <h1>Our Premium Collection</h1>
             <p>Discover the finest quality jaggery and organic sweeteners</p>
           </div>
 
+          {/* Search Bar */}
           <div className="products-search-wrapper">
             <div className="products-search-bar">
               <span className="search-icon">🔍</span>
@@ -244,21 +260,27 @@ const ProductsPage = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              {searchQuery && <button onClick={() => setSearchQuery("")} className="clear-search">✕</button>}
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="clear-search">✕</button>
+              )}
             </div>
           </div>
 
+          {/* ✅ Filter Toggle for Mobile */}
           <button className="filter-toggle-btn" onClick={() => setShowFilters(!showFilters)}>
             {showFilters ? "▲ Hide Filters" : "▼ Show Filters"}
           </button>
 
           <div className="products-layout">
+            {/* ✅ Filters Sidebar */}
             <div className={`filters-sidebar ${showFilters ? "active" : ""}`}>
               <div className="filter-header">
                 <h3>Filters</h3>
-                <button onClick={clearFilters} className="reset-filters">Reset All</button>
+                <button className="reset-filters" onClick={clearFilters}>Reset</button>
+                <button className="filter-close-btn" onClick={() => setShowFilters(false)}>✕</button>
               </div>
 
+              {/* Categories */}
               <div className="filter-group">
                 <h4>Categories</h4>
                 <div className="category-list">
@@ -269,23 +291,53 @@ const ProductsPage = () => {
                       onClick={() => setSelectedCategory(cat.id)}
                     >
                       <span className="cat-icon">{cat.icon}</span>
-                      <span>{cat.name}</span>
+                      <span className="cat-name">{cat.name}</span>
                       <span className="cat-count">{getCategoryCount(cat.id)}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Price Range */}
               <div className="filter-group">
                 <h4>Price Range</h4>
-                <div className="price-inputs">
-                  <input type="number" placeholder="Min" value={priceRange.min} onChange={(e) => setPriceRange({ ...priceRange, min: parseInt(e.target.value) || 0 })} />
-                  <span>-</span>
-                  <input type="number" placeholder="Max" value={priceRange.max} onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) || 1000 })} />
+                <div className="price-range-display">
+                  <span>₹{priceRange.min}</span>
+                  <div className="price-slider-track">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1000"
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) })}
+                      className="price-slider"
+                      style={{
+                        background: `linear-gradient(to right, #8B5E3C 0%, #8B5E3C ${(priceRange.max / 1000) * 100}%, #ddd ${(priceRange.max / 1000) * 100}%, #ddd 100%)`
+                      }}
+                    />
+                  </div>
+                  <span>₹{priceRange.max}</span>
                 </div>
-                <input type="range" min="0" max="1000" value={priceRange.max} onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) })} className="price-slider" />
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange({ ...priceRange, min: parseInt(e.target.value) || 0 })}
+                    className="price-input"
+                  />
+                  <span className="price-dash">—</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange({ ...priceRange, max: parseInt(e.target.value) || 1000 })}
+                    className="price-input"
+                  />
+                </div>
               </div>
 
+              {/* Sort By */}
               <div className="filter-group">
                 <h4>Sort By</h4>
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sort-select">
@@ -296,11 +348,33 @@ const ProductsPage = () => {
                   <option value="name-asc">Name: A to Z</option>
                 </select>
               </div>
+
+              {/* ✅ Apply Filters Button */}
+              <button className="apply-filters-btn" onClick={() => setShowFilters(false)}>
+                Apply Filters
+              </button>
             </div>
 
+            {/* Products Grid */}
             <div className="products-grid">
               <div className="products-header-bar">
                 <p>{filteredProducts.length} products found</p>
+                <div className="view-options">
+                  <button 
+                    className={`view-btn ${viewMode === "grid" ? "active" : ""}`}
+                    onClick={() => setViewMode("grid")}
+                    title="Grid View"
+                  >
+                    ⊞
+                  </button>
+                  <button 
+                    className={`view-btn ${viewMode === "list" ? "active" : ""}`}
+                    onClick={() => setViewMode("list")}
+                    title="List View"
+                  >
+                    ☰
+                  </button>
+                </div>
               </div>
 
               {filteredProducts.length === 0 ? (
@@ -311,20 +385,27 @@ const ProductsPage = () => {
                   <button onClick={clearFilters} className="reset-btn">Reset Filters</button>
                 </div>
               ) : (
-                <div className="products-grid-list">
+                <div className={`products-grid-list ${viewMode === "list" ? "list-view" : "grid-view"}`}>
                   {filteredProducts.map((product) => (
                     <div key={product.id} className="product-card">
-                      {product.badge && <span className={`product-badge ${product.badge.toLowerCase()}`}>{product.badge}</span>}
+                      {product.badge && (
+                        <span className={`product-badge ${product.badge.toLowerCase()}`}>{product.badge}</span>
+                      )}
                       <div className="product-image" onClick={() => navigate(`/product/${product.id}`)}>
                         <img src={product.image || "/assets/jaggery.png"} alt={product.name} />
                         <div className="product-overlay">
-                          <button className="quick-view">Quick View</button>
+                          <button className="quick-view" onClick={() => navigate(`/product/${product.id}`)}>
+                            Quick View
+                          </button>
                         </div>
                       </div>
                       <div className="product-info">
                         <h3 onClick={() => navigate(`/product/${product.id}`)}>{product.name}</h3>
                         <div className="product-rating">
-                          <div className="stars">{"★".repeat(Math.floor(reviews[product.id]?.rating || 4))}{"☆".repeat(5 - Math.floor(reviews[product.id]?.rating || 4))}</div>
+                          <div className="stars">
+                            {"★".repeat(Math.floor(reviews[product.id]?.rating || 4))}
+                            {"☆".repeat(5 - Math.floor(reviews[product.id]?.rating || 4))}
+                          </div>
                           <span>({reviews[product.id]?.count || 0} reviews)</span>
                         </div>
                         <p className="product-description">{product.description.substring(0, 80)}...</p>
@@ -341,8 +422,12 @@ const ProductsPage = () => {
                           )}
                         </div>
                         <div className="product-actions">
-                          <button className="view-details" onClick={() => navigate(`/product/${product.id}`)}>View Details</button>
-                          <button className="add-to-cart" onClick={() => addToCart(product)} disabled={product.stock === 0}>Add to Cart</button>
+                          <button className="view-details" onClick={() => navigate(`/product/${product.id}`)}>
+                            View Details
+                          </button>
+                          <button className="add-to-cart" onClick={() => addToCart(product)} disabled={product.stock === 0}>
+                            Add to Cart
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -370,7 +455,7 @@ const ProductsPage = () => {
         }
         @keyframes slideInRight {
           from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(0%); opacity: 1; }
         }
       `}</style>
     </>

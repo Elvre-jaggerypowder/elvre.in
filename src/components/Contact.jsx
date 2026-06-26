@@ -6,13 +6,14 @@ const Contact = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    message: ""
+    message: "",
+    category: "general",
+    rating: 5
   });
   const [status, setStatus] = useState("");
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // ✅ Contact Info State
   const [contactInfo, setContactInfo] = useState({
     phone1: "+91 7060998050",
     phone2: "+91 7906396629",
@@ -20,17 +21,25 @@ const Contact = () => {
     address: "1st Floor, Sangam Tent House, Jawalapur, Haridwar, Uttrakhand, 249407"
   });
 
+  // Categories
+  const categories = [
+    { value: "general", label: "General Feedback", icon: "💬" },
+    { value: "product", label: "Product Quality", icon: "🛍️" },
+    { value: "delivery", label: "Delivery Experience", icon: "🚚" },
+    { value: "customer_service", label: "Customer Service", icon: "🤝" },
+    { value: "website", label: "Website Experience", icon: "💻" },
+    { value: "suggestion", label: "Suggestion / Idea", icon: "💡" }
+  ];
+
   useEffect(() => {
     loadFeedbacks();
     loadContactInfo();
   }, []);
 
-  // ✅ Load Contact Info from localStorage
   const loadContactInfo = () => {
     const saved = localStorage.getItem("contactInfo");
     if (saved) {
       setContactInfo(JSON.parse(saved));
-      console.log('Contact info loaded:', JSON.parse(saved));
     }
   };
 
@@ -66,11 +75,15 @@ const Contact = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleRating = (rating) => {
+    setFormData({ ...formData, rating });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.message) {
-      setStatus("❌ Please fill all fields");
+    if (!formData.name || !formData.message) {
+      setStatus("❌ Please fill your name and message");
       setTimeout(() => setStatus(""), 3000);
       return;
     }
@@ -78,9 +91,11 @@ const Contact = () => {
     const newFeedback = {
       id: Date.now(),
       name: formData.name,
-      email: formData.email,
+      email: formData.email || "Not provided",
       message: formData.message,
-      date: new Date().toLocaleDateString(),
+      category: formData.category,
+      rating: formData.rating,
+      date: new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString()
     };
 
@@ -91,19 +106,13 @@ const Contact = () => {
       
       if (error) {
         console.error('Supabase error:', error);
-        const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-        saved.unshift(newFeedback);
-        localStorage.setItem("feedbacks", JSON.stringify(saved));
-        setFeedbacks(saved);
-      } else {
-        console.log('Feedback saved to Supabase!');
-        const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-        saved.unshift(newFeedback);
-        localStorage.setItem("feedbacks", JSON.stringify(saved));
-        setFeedbacks([newFeedback, ...feedbacks]);
+        setStatus("❌ Failed to submit. Please try again.");
+        return;
       }
       
-      setFormData({ name: "", email: "", message: "" });
+      console.log('✅ Feedback saved to Supabase!');
+      setFeedbacks([newFeedback, ...feedbacks]);
+      setFormData({ name: "", email: "", message: "", category: "general", rating: 5 });
       setStatus("✅ Thank you! Your feedback has been submitted.");
       setTimeout(() => setStatus(""), 3000);
     } catch (err) {
@@ -117,8 +126,8 @@ const Contact = () => {
     <section className="contact-section" id="contact">
       <div className="contact-container">
         <div className="contact-header">
-          <h2>Contact Us</h2>
-          <p>GET IN TOUCH</p>
+          <h2>Share Your Feedback</h2>
+          <p>YOUR OPINION MATTERS TO US</p>
         </div>
 
         <div className="contact-grid">
@@ -155,37 +164,99 @@ const Contact = () => {
 
           {/* RIGHT - Feedback Form */}
           <div className="contact-form">
-            <h3>Send us your feedback</h3>
+            <h3>Share Your Experience</h3>
+            <p className="form-subtitle">Help us serve you better</p>
+
             <form onSubmit={handleSubmit}>
-              <div className="form-row">
+              {/* Rating Section */}
+              <div className="form-group rating-group">
+                <label>How was your experience? <span className="required">*</span></label>
+                <div className="rating-stars">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`star-btn ${star <= formData.rating ? "active" : ""}`}
+                      onClick={() => handleRating(star)}
+                    >
+                      {star <= formData.rating ? "⭐" : "☆"}
+                    </button>
+                  ))}
+                  <span className="rating-label">
+                    {formData.rating === 1 && "😔 Needs Improvement"}
+                    {formData.rating === 2 && "😕 Could be better"}
+                    {formData.rating === 3 && "😐 Average"}
+                    {formData.rating === 4 && "😊 Good"}
+                    {formData.rating === 5 && "🌟 Excellent"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Category */}
+              <div className="form-group">
+                <label>Feedback Category</label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="category-select"
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Name */}
+              <div className="form-group">
+                <label>Your Name <span className="required">*</span></label>
                 <input
                   type="text"
                   name="name"
-                  placeholder="Your Name"
+                  placeholder="Enter your name"
                   value={formData.name}
                   onChange={handleChange}
                   required
                 />
+              </div>
+
+              {/* Email */}
+              <div className="form-group">
+                <label>Email (optional)</label>
                 <input
                   type="email"
                   name="email"
-                  placeholder="Your Email"
+                  placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
-                  required
                 />
               </div>
-              <textarea
-                name="message"
-                placeholder="Your message..."
-                rows="4"
-                value={formData.message}
-                onChange={handleChange}
-                required
-              ></textarea>
-              <button type="submit">Send Feedback</button>
+
+              {/* Message */}
+              <div className="form-group">
+                <label>Your Message <span className="required">*</span></label>
+                <textarea
+                  name="message"
+                  placeholder="What did you like or what can we improve?"
+                  rows="4"
+                  value={formData.message}
+                  onChange={handleChange}
+                  required
+                ></textarea>
+              </div>
+
+              <button type="submit" className="submit-btn">
+                Send Feedback
+              </button>
             </form>
+
             {status && <p className="form-status">{status}</p>}
+
+            <div className="secure-note">
+              <p>🔒 Your data is safe with us. We value your privacy.</p>
+            </div>
           </div>
         </div>
 
@@ -194,13 +265,25 @@ const Contact = () => {
           <div className="recent-feedbacks">
             <h3>Recent Feedback</h3>
             <div className="feedback-list">
-              {feedbacks.slice(0, 2).map((fb) => (
+              {feedbacks.slice(0, 3).map((fb) => (
                 <div key={fb.id} className="feedback-item">
                   <div className="feedback-item-header">
-                    <strong>{fb.name}</strong>
-                    <span>{fb.date || new Date(fb.created_at).toLocaleDateString()}</span>
+                    <div>
+                      <strong>{fb.name}</strong>
+                      <span className="feedback-rating">
+                        {"⭐".repeat(fb.rating || 5)}
+                      </span>
+                    </div>
+                    <span className="feedback-date">
+                      {fb.date || new Date(fb.created_at).toLocaleDateString()}
+                    </span>
                   </div>
-                  <p>{fb.message}</p>
+                  <p className="feedback-message">{fb.message}</p>
+                  {fb.category && (
+                    <span className="feedback-category">
+                      {categories.find(c => c.value === fb.category)?.icon || "💬"} {fb.category}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

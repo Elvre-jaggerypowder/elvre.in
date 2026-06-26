@@ -1,95 +1,159 @@
 /* ============================================
-   STATS COUNTER - PROFESSIONAL EQUAL BOXES
+   STATS COUNTER - COMPLETE FIX
    ============================================ */
 
 .stats-section {
-  padding: 70px 20px;
-  background: #ffffff;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, #1a2e1e 0%, #0f1a12 100%);
+  position: relative;
+  overflow: hidden;
 }
 
+.stats-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== GRID - 4 COLUMNS (Desktop) ===== */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 25px;
-  max-width: 1100px;
-  margin: 0 auto;
 }
 
-.stat-box {
-  background: #f9f3e8;
+/* ===== STAT CARD ===== */
+.stat-card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 30px 20px;
   text-align: center;
-  transition: all 0.3s ease;
-  border: 1px solid #e8ddd0;
-  min-height: 140px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.4s ease;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
 }
 
-.stat-box:hover {
+.stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(139, 94, 60, 0.1);
-  border-color: #8B5E3C;
+  border-color: rgba(241, 164, 15, 0.3);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
 }
 
 .stat-number {
   font-size: 2.8rem;
   font-weight: 700;
-  color: #8B5E3C;
-  font-family: 'Livvicsemibold', sans-serif;
+  color: #ffffff;
   line-height: 1.2;
+  letter-spacing: 1px;
 }
 
 .stat-number .symbol {
-  font-size: 1.8rem;
+  font-size: 2rem;
 }
 
 .stat-label {
   font-size: 1rem;
-  color: #555;
-  margin-top: 8px;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 6px;
+  font-weight: 400;
   letter-spacing: 0.5px;
 }
 
-/* ===== RESPONSIVE ===== */
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+/* ✅ Tablet: 2 columns */
 @media (max-width: 968px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
   }
   
-  .stat-box {
-    min-height: 120px;
+  .stat-card {
     padding: 25px 15px;
+    min-height: 140px;
   }
   
   .stat-number {
-    font-size: 2.2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-  }
-  
-  .stat-box {
-    min-height: 100px;
-    padding: 15px 10px;
-  }
-  
-  .stat-number {
-    font-size: 1.8rem;
+    font-size: 2.4rem;
   }
   
   .stat-label {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ✅ Mobile: 2 columns (fit properly) */
+@media (max-width: 640px) {
+  .stats-section {
+    padding: 40px 15px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .stat-card {
+    padding: 15px 10px;
+    min-height: 100px;
+    border-radius: 12px;
+  }
+  
+  .stat-icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+  
+  .stat-number {
+    font-size: 1.6rem;
+  }
+  
+  .stat-number .symbol {
+    font-size: 1rem;
+  }
+  
+  .stat-label {
+    font-size: 0.65rem;
+    margin-top: 4px;
+    line-height: 1.3;
+  }
+}
+
+/* ✅ Very Small Phones: 1 column */
+@media (max-width: 400px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .stat-card {
+    padding: 12px 8px;
+    min-height: 80px;
+  }
+  
+  .stat-number {
+    font-size: 1.3rem;
+  }
+  
+  .stat-label {
+    font-size: 0.55rem;
+  }
+  
+  .stat-icon {
+    font-size: 18px;
   }
 }
