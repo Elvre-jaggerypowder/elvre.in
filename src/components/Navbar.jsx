@@ -3,9 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { Link as ScrollLink } from "react-scroll";
 import { 
   FaShoppingCart, FaBars, FaTimes, FaHome, FaUser, 
-  FaSignOutAlt, FaSearch, FaListAlt, FaStore, FaInfoCircle, FaPhone, FaBlog 
+  FaSignOutAlt, FaListAlt, FaStore, FaInfoCircle, FaPhone, FaBlog,
+  FaEllipsisV, FaQuoteLeft, FaFileAlt, FaShieldAlt
 } from "react-icons/fa";
-import { MdMoreVert } from "react-icons/md";
 import SearchBar from "./SearchBar";
 import "./Navbar.css";
 
@@ -14,7 +14,7 @@ const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [userName, setUserName] = useState("");
   const dropdownRef = useRef(null);
   const location = useLocation();
   const isHomePage = location.pathname === "/";
@@ -48,7 +48,19 @@ const Navbar = () => {
 
   const checkLoginStatus = () => {
     const user = localStorage.getItem("currentUser");
-    setIsLoggedIn(!!user);
+    if (user) {
+      try {
+        const parsed = JSON.parse(user);
+        setIsLoggedIn(true);
+        setUserName(parsed.name || parsed.email || "User");
+      } catch {
+        setIsLoggedIn(true);
+        setUserName("User");
+      }
+    } else {
+      setIsLoggedIn(false);
+      setUserName("");
+    }
   };
 
   const handleLogout = () => {
@@ -62,35 +74,27 @@ const Navbar = () => {
   const toggleMenu = () => {
     setIsOpen(!isOpen);
     setIsDropdownOpen(false);
-    setShowMobileSearch(false);
   };
 
   const closeMenu = () => {
     setIsOpen(false);
     setIsDropdownOpen(false);
-    setShowMobileSearch(false);
   };
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const toggleMobileSearch = () => {
-    setShowMobileSearch(!showMobileSearch);
-    setIsOpen(false);
-  };
-
   return (
     <nav className="navbar">
       <div className="nav-container">
-        {/* ===== LOGO - LEFT ===== */}
+        {/* ===== LOGO (only image) ===== */}
         <Link to="/" className="nav-logo" onClick={closeMenu}>
           <img
             src={`${process.env.PUBLIC_URL}/assets/ELVRElogo1.png`}
             alt="ELVRE Logo"
             className="logo-img"
           />
-          <span className="logo-text">ELVRE</span>
         </Link>
 
         {/* ===== SEARCH BAR - CENTER ===== */}
@@ -99,16 +103,20 @@ const Navbar = () => {
         </div>
 
         {/* ===== DESKTOP MENU ===== */}
-        <div className="nav-menu desktop-menu">
+        <div className="desktop-menu">
           {isHomePage ? (
-            <ScrollLink to="hero" smooth={true} duration={500} spy={true} offset={-70}>
+            <ScrollLink to="hero" smooth={true} duration={500} spy={true} offset={-70} className="nav-link active">
               <FaHome className="nav-icon" /> Home
             </ScrollLink>
           ) : (
-            <Link to="/"><FaHome className="nav-icon" /> Home</Link>
+            <Link to="/" className="nav-link">
+              <FaHome className="nav-icon" /> Home
+            </Link>
           )}
 
-          <Link to="/products"><FaStore className="nav-icon" /> Products</Link>
+          <Link to="/products" className="nav-link">
+            <FaStore className="nav-icon" /> Products
+          </Link>
 
           <Link to="/cart" className="cart-link">
             <FaShoppingCart />
@@ -117,17 +125,18 @@ const Navbar = () => {
 
           <div className="dropdown" ref={dropdownRef}>
             <button className="dropdown-btn" onClick={toggleDropdown}>
-              <MdMoreVert className="more-icon" />
+              <FaEllipsisV className="more-icon" />
             </button>
             {isDropdownOpen && (
               <div className="dropdown-content">
+                <div className="dropdown-header">More pages</div>
                 {isHomePage ? (
                   <>
                     <ScrollLink to="about" smooth={true} duration={500} onClick={closeMenu}>
                       <FaInfoCircle /> About
                     </ScrollLink>
                     <ScrollLink to="testimonial" smooth={true} duration={500} onClick={closeMenu}>
-                      Testimonials
+                      <FaQuoteLeft /> Testimonials
                     </ScrollLink>
                     <ScrollLink to="contact" smooth={true} duration={500} onClick={closeMenu}>
                       <FaPhone /> Contact
@@ -139,8 +148,8 @@ const Navbar = () => {
                     <Link to="/blog" onClick={closeMenu}><FaBlog /> Blog</Link>
                   </>
                 )}
-                <Link to="/terms" onClick={closeMenu}>Terms & Conditions</Link>
-                <Link to="/privacy" onClick={closeMenu}>Privacy Policy</Link>
+                <Link to="/terms" onClick={closeMenu}><FaFileAlt /> Terms &amp; Conditions</Link>
+                <Link to="/privacy" onClick={closeMenu}><FaShieldAlt /> Privacy Policy</Link>
                 {isLoggedIn && (
                   <button onClick={handleLogout} className="dropdown-logout">
                     <FaSignOutAlt /> Logout
@@ -160,9 +169,9 @@ const Navbar = () => {
 
         {/* ===== MOBILE ICONS ===== */}
         <div className="mobile-icons">
-          <button className="mobile-search-btn" onClick={toggleMobileSearch}>
-            <FaSearch />
-          </button>
+          <div className="mobile-search-compact">
+            <SearchBar />
+          </div>
           <Link to="/cart" className="mobile-cart">
             <FaShoppingCart />
             {cartCount > 0 && <span className="cart-count-mobile">{cartCount}</span>}
@@ -172,51 +181,83 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* ===== MOBILE SEARCH ===== */}
-        {showMobileSearch && (
-          <div className="mobile-search-container">
-            <SearchBar />
-            <button className="close-search" onClick={toggleMobileSearch}>✕</button>
-          </div>
-        )}
-
         {/* ===== MOBILE MENU ===== */}
-        <div className={`mobile-menu ${isOpen ? "active" : ""}`}>
-          <Link to="/" onClick={toggleMenu}><FaHome /> Home</Link>
-          <Link to="/products" onClick={toggleMenu}><FaStore /> Products</Link>
-          {isHomePage ? (
-            <>
-              <ScrollLink to="about" smooth={true} duration={500} onClick={toggleMenu}><FaInfoCircle /> About Us</ScrollLink>
-              <ScrollLink to="testimonial" smooth={true} duration={500} onClick={toggleMenu}>Testimonials</ScrollLink>
-              <ScrollLink to="contact" smooth={true} duration={500} onClick={toggleMenu}><FaPhone /> Contact Us</ScrollLink>
-            </>
-          ) : (
-            <>
-              <Link to="/our-story" onClick={toggleMenu}><FaInfoCircle /> Our Story</Link>
-              <Link to="/blog" onClick={toggleMenu}><FaBlog /> Blog</Link>
-            </>
-          )}
-          <Link to="/terms" onClick={toggleMenu}>Terms & Conditions</Link>
-          <Link to="/privacy" onClick={toggleMenu}>Privacy Policy</Link>
-          {isLoggedIn && (
-            <Link to="/my-orders" onClick={toggleMenu} className="mobile-orders-link">
-              <FaListAlt /> My Orders
+        <div className={`mobile-menu ${isOpen ? "open" : ""}`}>
+          <div className="mobile-menu-inner">
+            {/* User info row */}
+            <div className="mob-user-row">
+              <div className="mob-avatar">
+                {isLoggedIn ? userName.charAt(0).toUpperCase() : "?"}
+              </div>
+              <div>
+                <div className="mob-user-name">{isLoggedIn ? userName : "Guest"}</div>
+                <div className="mob-user-role">{isLoggedIn ? "Member" : "Please login"}</div>
+              </div>
+            </div>
+
+            {/* ✅ Mobile Menu Links - Each on separate line */}
+            <Link to="/" onClick={toggleMenu} className="mob-link">
+              <FaHome /> Home
             </Link>
-          )}
-          {isLoggedIn && (
-            <Link to="/profile" onClick={toggleMenu} className="mobile-profile-link">
-              <FaUser /> My Profile
+            <Link to="/products" onClick={toggleMenu} className="mob-link">
+              <FaStore /> Products
             </Link>
-          )}
-          {!isLoggedIn ? (
-            <Link to="/login" onClick={toggleMenu} className="mobile-login-btn">
-              <FaUser /> Login / Signup
+
+            {isHomePage ? (
+              <>
+                <ScrollLink to="about" smooth={true} duration={500} onClick={toggleMenu} className="mob-link">
+                  <FaInfoCircle /> About Us
+                </ScrollLink>
+                <ScrollLink to="testimonial" smooth={true} duration={500} onClick={toggleMenu} className="mob-link">
+                  <FaQuoteLeft /> Testimonials
+                </ScrollLink>
+                <ScrollLink to="contact" smooth={true} duration={500} onClick={toggleMenu} className="mob-link">
+                  <FaPhone /> Contact Us
+                </ScrollLink>
+              </>
+            ) : (
+              <>
+                <Link to="/our-story" onClick={toggleMenu} className="mob-link">
+                  <FaInfoCircle /> Our Story
+                </Link>
+                <Link to="/blog" onClick={toggleMenu} className="mob-link">
+                  <FaBlog /> Blog
+                </Link>
+              </>
+            )}
+
+            <hr className="mob-divider" />
+
+            <Link to="/terms" onClick={toggleMenu} className="mob-link">
+              <FaFileAlt /> Terms &amp; Conditions
             </Link>
-          ) : (
-            <button onClick={handleLogout} className="mobile-logout-btn">
-              <FaSignOutAlt /> Logout
-            </button>
-          )}
+            <Link to="/privacy" onClick={toggleMenu} className="mob-link">
+              <FaShieldAlt /> Privacy Policy
+            </Link>
+
+            <hr className="mob-divider" />
+
+            {isLoggedIn && (
+              <Link to="/my-orders" onClick={toggleMenu} className="mob-link">
+                <FaListAlt /> My Orders
+              </Link>
+            )}
+            {isLoggedIn && (
+              <Link to="/profile" onClick={toggleMenu} className="mob-link">
+                <FaUser /> My Profile
+              </Link>
+            )}
+
+            {!isLoggedIn ? (
+              <Link to="/login" onClick={toggleMenu} className="mob-link mob-login-btn">
+                <FaUser /> Login / Signup
+              </Link>
+            ) : (
+              <button onClick={handleLogout} className="mob-link mob-logout-btn">
+                <FaSignOutAlt /> Logout
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </nav>
