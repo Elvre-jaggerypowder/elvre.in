@@ -3,7 +3,7 @@
    ============================================ */
 .whatsapp-button {
   position: fixed;
-  bottom: 6rem;
+  bottom: 56px;
   right: 20px;
   width: 60px;
   height: 60px;
@@ -30,7 +30,7 @@
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .whatsapp-button {
-    bottom: 4rem;
+    bottom: 44px;
     right: 15px;
     width: 50px;
     height: 50px;
@@ -44,7 +44,7 @@
 
 @media (max-width: 480px) {
   .whatsapp-button {
-    bottom: 3.5rem;
+    bottom: 36px;
     right: 12px;
     width: 45px;
     height: 45px;

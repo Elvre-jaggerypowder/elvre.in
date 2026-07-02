@@ -277,7 +277,8 @@
 }
 
 .dropdown-content a,
-.dropdown-content button {
+.dropdown-content button,
+.dropdown-help-btn {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -295,13 +296,15 @@
 }
 
 .dropdown-content a i,
-.dropdown-content button i {
+.dropdown-content button i,
+.dropdown-help-btn i {
   font-size: 16px;
   color: var(--green-light);
 }
 
 .dropdown-content a:hover,
-.dropdown-content button:hover {
+.dropdown-content button:hover,
+.dropdown-help-btn:hover {
   background: var(--cream2);
 }
 
@@ -516,6 +519,10 @@
 .mobile-menu.open {
   max-height: 600px;
   overflow-y: auto;
+}
+
+.mob-help-btn {
+  color: #fff;
 }
 
 .mobile-menu-inner {

@@ -4,12 +4,12 @@ import { Link as ScrollLink } from "react-scroll";
 import { 
   FaShoppingCart, FaBars, FaTimes, FaHome, FaUser, 
   FaSignOutAlt, FaListAlt, FaStore, FaInfoCircle, FaPhone, FaBlog,
-  FaEllipsisV, FaQuoteLeft, FaFileAlt, FaShieldAlt
+  FaEllipsisV, FaQuoteLeft, FaFileAlt, FaShieldAlt, FaQuestionCircle
 } from "react-icons/fa";
 import SearchBar from "./SearchBar";
 import "./Navbar.css";
 
-const Navbar = () => {
+const Navbar = ({ onOpenHelp }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
@@ -85,6 +85,13 @@ const Navbar = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
+  const openHelp = () => {
+    if (onOpenHelp) {
+      onOpenHelp();
+    }
+    window.dispatchEvent(new CustomEvent("open-elvre-chatbot"));
+  };
+
   return (
     <nav className="navbar">
       <div className="nav-container">
@@ -130,6 +137,9 @@ const Navbar = () => {
             {isDropdownOpen && (
               <div className="dropdown-content">
                 <div className="dropdown-header">More pages</div>
+                <button className="dropdown-help-btn" onClick={() => { openHelp(); closeMenu(); }}>
+                  <FaQuestionCircle /> Help
+                </button>
                 {isHomePage ? (
                   <>
                     <ScrollLink to="about" smooth={true} duration={500} onClick={closeMenu}>
@@ -202,6 +212,10 @@ const Navbar = () => {
             <Link to="/products" onClick={toggleMenu} className="mob-link">
               <FaStore /> Products
             </Link>
+
+            <button className="mob-link mob-help-btn" onClick={() => { openHelp(); toggleMenu(); }}>
+              <FaQuestionCircle /> Help
+            </button>
 
             {isHomePage ? (
               <>

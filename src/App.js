@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
@@ -35,6 +35,7 @@ import { CartProvider } from "./context/CartContext";
 import { ContentProvider } from "./context/ContentContext";
 import BackToTop from "./components/BackToTop";
 import WhatsApp from "./components/WhatsApp";
+import Chatbot from "./components/Chatbot";
 
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem("currentUser");
@@ -46,16 +47,19 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // ✅ LAYOUT WITHOUT FOOTER (Footer har page ke andar alag se aayega)
-const Layout = ({ children }) => (
+const Layout = ({ children, isChatbotOpen, setIsChatbotOpen }) => (
   <>
-    <Navbar />
+    <Navbar onOpenHelp={() => setIsChatbotOpen(true)} />
     {children}
+    <Chatbot isOpen={isChatbotOpen} setIsOpen={setIsChatbotOpen} />
     <WhatsApp />
     <BackToTop />
   </>
 );
 
 function App() {
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+
   useEffect(() => {
     AOS.init({ 
       duration: 1000, 
@@ -75,32 +79,32 @@ function App() {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             
             {/* Public Routes */}
-            <Route path="/" element={<Layout><Home /></Layout>} />
-            <Route path="/products" element={<Layout><ProductsPage /></Layout>} />
-            <Route path="/product/:id" element={<Layout><ProductDetails /></Layout>} />
-            <Route path="/cart" element={<Layout><Cart /></Layout>} />
-            <Route path="/our-story" element={<Layout><OurStory /></Layout>} />
-            <Route path="/blog" element={<Layout><Blog /></Layout>} />
-            <Route path="/contact" element={<Layout><Contact /></Layout>} />
-            <Route path="/terms" element={<Layout><TermsAndConditions /></Layout>} />
-            <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
+            <Route path="/" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><Home /></Layout>} />
+            <Route path="/products" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><ProductsPage /></Layout>} />
+            <Route path="/product/:id" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><ProductDetails /></Layout>} />
+            <Route path="/cart" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><Cart /></Layout>} />
+            <Route path="/our-story" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><OurStory /></Layout>} />
+            <Route path="/blog" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><Blog /></Layout>} />
+            <Route path="/contact" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><Contact /></Layout>} />
+            <Route path="/terms" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><TermsAndConditions /></Layout>} />
+            <Route path="/privacy" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><PrivacyPolicy /></Layout>} />
             
             {/* Auth Routes */}
-            <Route path="/login" element={<Layout><UserLogin /></Layout>} />
-            <Route path="/signup" element={<Layout><UserSignup /></Layout>} />
+            <Route path="/login" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><UserLogin /></Layout>} />
+            <Route path="/signup" element={<Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><UserSignup /></Layout>} />
             
             {/* Protected Routes */}
             <Route path="/my-orders" element={
-              <ProtectedRoute><Layout><OrdersPage /></Layout></ProtectedRoute>
+              <ProtectedRoute><Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><OrdersPage /></Layout></ProtectedRoute>
             } />
             <Route path="/profile" element={
-              <ProtectedRoute><Layout><UserProfile /></Layout></ProtectedRoute>
+              <ProtectedRoute><Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><UserProfile /></Layout></ProtectedRoute>
             } />
             <Route path="/checkout" element={
-              <ProtectedRoute><Layout><Checkout /></Layout></ProtectedRoute>
+              <ProtectedRoute><Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><Checkout /></Layout></ProtectedRoute>
             } />
             <Route path="/order-tracking/:orderId" element={
-              <ProtectedRoute><Layout><OrderTracking /></Layout></ProtectedRoute>
+              <ProtectedRoute><Layout isChatbotOpen={isChatbotOpen} setIsChatbotOpen={setIsChatbotOpen}><OrderTracking /></Layout></ProtectedRoute>
             } />
             
             <Route path="*" element={<Navigate to="/" replace />} />
