@@ -8,12 +8,10 @@ export async function searchProducts(query, limit = 20) {
   if (!query || !query.trim()) return [];
   const q = query.trim();
   try {
-    const orExpr = `name.ilike.%${q}%,description.ilike.%${q}%,category.ilike.%${q}%,keywords.ilike.%${q}%`;
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .or(orExpr)
-      .limit(limit);
+    // Search only on columns that exist in the products table used by the app
+    // (name, description, category, badge). Do not query 'keywords' which may not exist.
+    const orExpr = `name.ilike.%${q}%,description.ilike.%${q}%,category.ilike.%${q}%,badge.ilike.%${q}%`;
+    const { data, error } = await supabase.from("products").select("*").or(orExpr).limit(limit);
 
     if (error) {
       console.error("productService.searchProducts error:", error);

@@ -4,6 +4,13 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { sendOrderEmails } from '../services/emailService';
+import { 
+  sendOTP, 
+  generateOTP, 
+  storeOTP, 
+  verifyOTP, 
+  getOTPExpiryTime 
+} from '../services/smsService';
 import "./Checkout.css";
 
 const Checkout = () => {
@@ -19,12 +26,15 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [step, setStep] = useState(1);
+  const [emailSent, setEmailSent] = useState(false);
+  
+  // OTP States
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [generatedOtp, setGeneratedOtp] = useState("");
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [canResend, setCanResend] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -40,6 +50,39 @@ const Checkout = () => {
   useEffect(() => {
     checkUserAndLoadCart();
   }, []);
+
+  // Timer effect for OTP countdown
+  useEffect(() => {
+    if (otpTimer > 0) {
+      const interval = setInterval(() => {
+        setOtpTimer(prev => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [otpTimer]);
+
+  // When phone changes, reset OTP verification
+  useEffect(() => {
+    if (formData.phone) {
+      const remaining = getOTPExpiryTime(formData.phone);
+      if (remaining > 0) {
+        setOtpSent(true);
+        setOtpTimer(remaining);
+        setCanResend(false);
+      } else {
+        setOtpSent(false);
+        setPhoneVerified(false);
+        setOtpTimer(0);
+        setCanResend(true);
+      }
+    }
+  }, [formData.phone]);
 
   const checkUserAndLoadCart = () => {
     const user = localStorage.getItem("currentUser");
@@ -204,34 +247,57 @@ const Checkout = () => {
     }
   };
 
-  // Phone Number Verification Functions
-  const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
-  const sendOTP = () => {
+  // ======================= OTP FUNCTIONS =======================
+  const handleSendOTP = async () => {
     const phone = formData.phone;
     if (!phone || phone.length < 10) {
-      alert("Please enter a valid 10-digit phone number");
+      alert("⚠️ Please enter a valid 10-digit phone number.");
       return;
     }
-    
+
+    setIsSendingOtp(true);
     const otp = generateOTP();
-    setGeneratedOtp(otp);
-    setOtpSent(true);
-    setShowOtpInput(true);
-    alert(`Demo: Your OTP is ${otp}. (In production, this will be sent via SMS)`);
+    
+    storeOTP(phone, otp);
+    const result = await sendOTP(phone, otp);
+    
+    if (result.success) {
+      setOtpSent(true);
+      setOtpTimer(300);
+      setCanResend(false);
+      alert(`✅ OTP sent to ${phone}. Please check your SMS. (Demo: ${otp})`); 
+    } else {
+      alert(`❌ Failed to send OTP: ${result.error}. Please try again.`);
+    }
+    setIsSendingOtp(false);
   };
 
-  const verifyOTP = () => {
-    if (otpCode === generatedOtp) {
+  const handleVerifyOTP = () => {
+    const phone = formData.phone;
+    if (!otpCode || otpCode.length < 6) {
+      alert("⚠️ Please enter the 6-digit OTP.");
+      return;
+    }
+
+    const result = verifyOTP(phone, otpCode);
+    
+    if (result.success) {
       setPhoneVerified(true);
-      setShowOtpInput(false);
-      alert("Phone number verified successfully!");
+      setOtpSent(false);
+      setOtpTimer(0);
+      setOtpCode("");
+      alert("✅ Phone number verified successfully!");
     } else {
-      alert("Invalid OTP. Please try again.");
+      alert(`❌ ${result.message}`);
     }
   };
+
+  const handleResendOTP = () => {
+    if (canResend) {
+      handleSendOTP();
+    }
+  };
+  // ============================================================
 
   const handleSelectAddress = (addressId) => {
     const address = savedAddresses.find(a => a.id === parseInt(addressId));
@@ -250,16 +316,19 @@ const Checkout = () => {
       setShowNewAddressForm(false);
       setPhoneVerified(false);
       setOtpSent(false);
-      setShowOtpInput(false);
+      setOtpTimer(0);
+      setOtpCode("");
     }
   };
 
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    if (e.target.name === "phone") {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (name === "phone") {
       setPhoneVerified(false);
       setOtpSent(false);
-      setShowOtpInput(false);
+      setOtpTimer(0);
+      setOtpCode("");
     }
   };
 
@@ -278,7 +347,8 @@ const Checkout = () => {
     });
     setPhoneVerified(false);
     setOtpSent(false);
-    setShowOtpInput(false);
+    setOtpTimer(0);
+    setOtpCode("");
   };
 
   const handleContinueToPayment = () => {
@@ -315,6 +385,9 @@ const Checkout = () => {
     setShowNewAddressForm(false);
   };
 
+  // ============================================================
+  // FIXED placeOrder – with robust Supabase insertion + fallback
+  // ============================================================
   const placeOrder = async (e) => {
     e.preventDefault();
     
@@ -347,10 +420,15 @@ const Checkout = () => {
         return;
       }
       
-      await supabase
+      const { error: stockError } = await supabase
         .from('products')
         .update({ stock: newStock })
         .eq('id', item.id);
+      
+      if (stockError) {
+        console.error('Stock update error:', stockError);
+        // Continue anyway – we'll still create the order
+      }
     }
     
     // Update localStorage products
@@ -366,6 +444,7 @@ const Checkout = () => {
     localStorage.setItem("elvreProducts", JSON.stringify(updatedProducts));
     window.dispatchEvent(new Event("productsUpdated"));
     
+    // Build the order object
     const newOrder = {
       id: "ORD" + Date.now(),
       customer: formData.fullName,
@@ -383,59 +462,52 @@ const Checkout = () => {
       shipping: shipping,
       discount: 0,
       total: total,
-      paymentMethod: formData.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment",
+      payment_method: formData.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment",
+      payment_status: "pending",
       status: "pending",
-      paymentStatus: "pending",
-      orderDate: orderDate,
-      orderTime: orderTime
+      order_date: orderDate,
+      order_time: orderTime,
+      created_at: now.toISOString()
     };
-    
-    // Save order to Supabase
+
+    // ------------------------------------------------------------
+    // 🔥 SAVE ORDER TO SUPABASE (with full logging)
+    // ------------------------------------------------------------
+    console.log('💾 Attempting to save order to Supabase:', newOrder);
+    let supabaseSuccess = false;
+
     try {
-      const { error: supabaseError } = await supabase
+      const { data, error } = await supabase
         .from('orders')
-        .insert([
-          {
-            id: newOrder.id,
-            customer: newOrder.customer,
-            email: newOrder.email,
-            phone: newOrder.phone,
-            address: newOrder.address,
-            products: newOrder.products,
-            subtotal: newOrder.subtotal,
-            shipping: newOrder.shipping,
-            discount: newOrder.discount,
-            total: newOrder.total,
-            payment_method: newOrder.paymentMethod,
-            payment_status: newOrder.paymentStatus,
-            status: newOrder.status,
-            order_date: newOrder.orderDate,
-            order_time: newOrder.orderTime,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      if (supabaseError) console.error('Supabase order save error:', supabaseError);
+        .insert([newOrder]);
+
+      if (error) {
+        console.error('❌ Supabase order insert error:', error);
+        alert('Order placed, but could not save to cloud. We\'ll keep your order locally.');
+      } else {
+        console.log('✅ Order saved to Supabase successfully!', data);
+        supabaseSuccess = true;
+      }
     } catch (err) {
-      console.error('Error saving to Supabase:', err);
+      console.error('❌ Exception while saving to Supabase:', err);
+      alert('Order placed, but could not save to cloud. We\'ll keep your order locally.');
     }
-    
-    // Save to localStorage backup
+
+    // Always save to localStorage as backup (even if Supabase succeeded)
     const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
     existingOrders.unshift(newOrder);
     localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
-    
+
+    // Clear cart
     localStorage.removeItem("cart");
     setCart([]);
     window.dispatchEvent(new Event("storage"));
-    
-    // ✅ ============================================
-    // ✅ SEND ORDER CONFIRMATION EMAILS
-    // ✅ ============================================
+
+    // Send order confirmation emails (only once)
     if (!emailSent) {
       try {
         console.log('📧 Sending order emails for order:', newOrder.id);
         const emailResult = await sendOrderEmails(newOrder);
-        
         if (emailResult.success) {
           console.log('✅ Order emails sent successfully!');
         } else {
@@ -446,10 +518,10 @@ const Checkout = () => {
         console.error('❌ Email sending error:', emailErr);
       }
     }
-    
+
     setOrderId(newOrder.id);
     setOrderPlaced(true);
-    
+
     setTimeout(() => {
       navigate(`/order-tracking/${newOrder.id}`);
     }, 3000);
@@ -492,9 +564,15 @@ const Checkout = () => {
       <div className="checkout-page">
         <div className="checkout-container">
           <div className="checkout-progress">
-            <div className={`progress-step ${step >= 1 ? "active" : ""}`}><div className="step-number">1</div><div className="step-label">Shipping Address</div></div>
+            <div className={`progress-step ${step >= 1 ? "active" : ""}`}>
+              <div className="step-number">1</div>
+              <div className="step-label">Shipping Address</div>
+            </div>
             <div className="progress-line"></div>
-            <div className={`progress-step ${step >= 2 ? "active" : ""}`}><div className="step-number">2</div><div className="step-label">Payment</div></div>
+            <div className={`progress-step ${step >= 2 ? "active" : ""}`}>
+              <div className="step-number">2</div>
+              <div className="step-label">Payment</div>
+            </div>
           </div>
 
           <h1>Checkout</h1>
@@ -510,7 +588,9 @@ const Checkout = () => {
                       <div className="addresses-list">
                         {savedAddresses.map((addr) => (
                           <div key={addr.id} className={`address-card ${selectedAddressId === addr.id ? "selected" : ""}`} onClick={() => handleSelectAddress(addr.id)}>
-                            <div className="address-radio"><input type="radio" name="savedAddress" checked={selectedAddressId === addr.id} onChange={() => handleSelectAddress(addr.id)} /></div>
+                            <div className="address-radio">
+                              <input type="radio" name="savedAddress" checked={selectedAddressId === addr.id} onChange={() => handleSelectAddress(addr.id)} />
+                            </div>
                             <div className="address-details">
                               <p><strong>{addr.full_name}</strong></p>
                               <p>{addr.address}, {addr.city}, {addr.state} - {addr.pincode}</p>
@@ -527,32 +607,95 @@ const Checkout = () => {
                     <div className="new-address-form">
                       <h3>Add New Address</h3>
                       <div className="form-row">
-                        <div className="form-group"><label>Full Name *</label><input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} required /></div>
-                        <div className="form-group"><label>Email *</label><input type="email" name="email" value={formData.email} onChange={handleInputChange} required /></div>
+                        <div className="form-group">
+                          <label>Full Name *</label>
+                          <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} required />
+                        </div>
+                        <div className="form-group">
+                          <label>Email *</label>
+                          <input type="email" name="email" value={formData.email} onChange={handleInputChange} required />
+                        </div>
                       </div>
                       <div className="form-group">
                         <label>Phone Number *</label>
                         <div className="phone-verification-group">
-                          <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="10-digit mobile number" required />
+                          <input 
+                            type="tel" 
+                            name="phone" 
+                            value={formData.phone} 
+                            onChange={handleInputChange} 
+                            placeholder="10-digit mobile number" 
+                            required 
+                            disabled={phoneVerified}
+                          />
                           {!phoneVerified && formData.phone && formData.phone.length >= 10 && !otpSent && (
-                            <button type="button" className="send-otp-btn" onClick={sendOTP}>Send OTP</button>
+                            <button 
+                              type="button" 
+                              className="send-otp-btn" 
+                              onClick={handleSendOTP} 
+                              disabled={isSendingOtp}
+                            >
+                              {isSendingOtp ? "Sending..." : "📱 Send OTP"}
+                            </button>
                           )}
                         </div>
-                        {showOtpInput && (
+                        {otpSent && !phoneVerified && (
                           <div className="otp-verification-group">
-                            <input type="text" placeholder="Enter 6-digit OTP" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} />
-                            <button type="button" className="verify-otp-btn" onClick={verifyOTP}>Verify OTP</button>
+                            <input 
+                              type="text" 
+                              placeholder="Enter 6-digit OTP" 
+                              value={otpCode} 
+                              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                              maxLength="6"
+                              className="otp-input"
+                              autoFocus
+                            />
+                            <button type="button" className="verify-otp-btn" onClick={handleVerifyOTP}>
+                              ✅ Verify
+                            </button>
+                            <div className="otp-status">
+                              {otpTimer > 0 ? (
+                                <span className="otp-timer">
+                                  ⏳ OTP expires in {Math.floor(otpTimer / 60)}:{(otpTimer % 60).toString().padStart(2, '0')}
+                                </span>
+                              ) : (
+                                canResend && (
+                                  <button 
+                                    type="button" 
+                                    className="resend-otp-btn" 
+                                    onClick={handleResendOTP} 
+                                    disabled={isSendingOtp}
+                                  >
+                                    {isSendingOtp ? "Sending..." : "🔄 Resend OTP"}
+                                  </button>
+                                )
+                              )}
+                            </div>
                           </div>
                         )}
                         {phoneVerified && (
-                          <div className="verified-badge">✓ Phone number verified</div>
+                          <div className="verified-badge" style={{color: 'green', fontWeight: 'bold'}}>
+                            ✅ Phone Verified
+                          </div>
                         )}
                       </div>
-                      <div className="form-group"><label>Address *</label><textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" required /></div>
+                      <div className="form-group">
+                        <label>Address *</label>
+                        <textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" required />
+                      </div>
                       <div className="form-row">
-                        <div className="form-group"><label>City *</label><input type="text" name="city" value={formData.city} onChange={handleInputChange} required /></div>
-                        <div className="form-group"><label>State *</label><input type="text" name="state" value={formData.state} onChange={handleInputChange} required /></div>
-                        <div className="form-group"><label>Pincode *</label><input type="text" name="pincode" value={formData.pincode} onChange={handleInputChange} required /></div>
+                        <div className="form-group">
+                          <label>City *</label>
+                          <input type="text" name="city" value={formData.city} onChange={handleInputChange} required />
+                        </div>
+                        <div className="form-group">
+                          <label>State *</label>
+                          <input type="text" name="state" value={formData.state} onChange={handleInputChange} required />
+                        </div>
+                        <div className="form-group">
+                          <label>Pincode *</label>
+                          <input type="text" name="pincode" value={formData.pincode} onChange={handleInputChange} required />
+                        </div>
                       </div>
                       {savedAddresses.length > 0 && <button type="button" className="back-to-addresses-btn" onClick={() => setShowNewAddressForm(false)}>← Back to Saved Addresses</button>}
                     </div>
@@ -566,20 +709,79 @@ const Checkout = () => {
                 <>
                   <h2>Payment Method</h2>
                   <div className="payment-methods-list">
-                    <div className="payment-method-card selected"><input type="radio" checked readOnly /><div className="payment-method-info"><strong>💵 Cash on Delivery (COD)</strong><p>Pay when you receive your order</p></div></div>
-                    <div className="payment-method-card disabled"><input type="radio" disabled /><div className="payment-method-info"><strong>💳 Credit/Debit Card</strong><p>Coming soon</p></div></div>
-                    <div className="payment-method-card disabled"><input type="radio" disabled /><div className="payment-method-info"><strong>📱 UPI / Wallet</strong><p>Coming soon</p></div></div>
+                    <div className="payment-method-card selected">
+                      <input type="radio" checked readOnly />
+                      <div className="payment-method-info">
+                        <strong>💵 Cash on Delivery (COD)</strong>
+                        <p>Pay when you receive your order</p>
+                      </div>
+                    </div>
+                    <div className="payment-method-card disabled">
+                      <input type="radio" disabled />
+                      <div className="payment-method-info">
+                        <strong>💳 Credit/Debit Card</strong>
+                        <p>Coming soon</p>
+                      </div>
+                    </div>
+                    <div className="payment-method-card disabled">
+                      <input type="radio" disabled />
+                      <div className="payment-method-info">
+                        <strong>📱 UPI / Wallet</strong>
+                        <p>Coming soon</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="payment-actions"><button type="button" className="back-btn" onClick={handleBackToAddress}>← Back to Address</button><button className="place-order-btn" onClick={placeOrder}>Place Order</button></div>
+                  <div className="payment-actions">
+                    <button type="button" className="back-btn" onClick={handleBackToAddress}>← Back to Address</button>
+                    <button className="place-order-btn" onClick={placeOrder}>Place Order</button>
+                  </div>
                 </>
               )}
             </div>
             
             <div className="checkout-summary">
               <h2>Order Summary</h2>
-              <div className="summary-products">{cart.map((item, idx) => { const price = item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0; const qty = item.quantity || 1; return (<div key={idx} className="summary-product"><img src={item.image || "/assets/jaggery.png"} alt={item.name} /><div className="summary-product-info"><h4>{item.name}</h4><p>Qty: {qty}</p></div><div className="summary-product-price">₹{price * qty}</div></div>); })}</div>
-              <div className="summary-totals"><div className="summary-row"><span>Subtotal ({cart.reduce((s, i) => s + (i.quantity || 1), 0)} items)</span><span>₹{subtotal}</span></div><div className="summary-row"><span>Shipping</span><span>{shipping === 0 ? "Free" : `₹${shipping}`}</span></div>{subtotal < 499 && <div className="shipping-notice">Add ₹{(499 - subtotal).toFixed(2)} more for free shipping</div>}<div className="summary-row total"><span>Total</span><span>₹{total}</span></div></div>
-              <div className="secure-info"><p>🔒 Secure Checkout</p><p>✅ 100% Safe & Secure Payment</p><p>🚚 Free Shipping on orders above ₹499</p><p>🔄 7-Day Easy Returns</p></div>
+              <div className="summary-products">
+                {cart.map((item, idx) => {
+                  const price = item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0;
+                  const qty = item.quantity || 1;
+                  return (
+                    <div key={idx} className="summary-product">
+                      <img src={item.image || "/assets/jaggery.png"} alt={item.name} />
+                      <div className="summary-product-info">
+                        <h4>{item.name}</h4>
+                        <p>Qty: {qty}</p>
+                      </div>
+                      <div className="summary-product-price">₹{price * qty}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="summary-totals">
+                <div className="summary-row">
+                  <span>Subtotal ({cart.reduce((s, i) => s + (i.quantity || 1), 0)} items)</span>
+                  <span>₹{subtotal}</span>
+                </div>
+                <div className="summary-row">
+                  <span>Shipping</span>
+                  <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
+                </div>
+                {subtotal < 499 && (
+                  <div className="shipping-notice">
+                    Add ₹{(499 - subtotal).toFixed(2)} more for free shipping
+                  </div>
+                )}
+                <div className="summary-row total">
+                  <span>Total</span>
+                  <span>₹{total}</span>
+                </div>
+              </div>
+              <div className="secure-info">
+                <p>🔒 Secure Checkout</p>
+                <p>✅ 100% Safe & Secure Payment</p>
+                <p>🚚 Free Shipping on orders above ₹499</p>
+                <p>🔄 7-Day Easy Returns</p>
+              </div>
             </div>
           </div>
         </div>

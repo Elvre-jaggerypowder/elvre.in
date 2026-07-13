@@ -4,7 +4,8 @@ import { Link as ScrollLink } from "react-scroll";
 import { 
   FaShoppingCart, FaBars, FaTimes, FaHome, FaUser, 
   FaSignOutAlt, FaListAlt, FaStore, FaInfoCircle, FaPhone, FaBlog,
-  FaEllipsisV, FaQuoteLeft, FaFileAlt, FaShieldAlt, FaQuestionCircle
+  FaEllipsisV, FaQuoteLeft, FaFileAlt, FaShieldAlt, FaQuestionCircle,
+  FaWhatsapp  // ✅ CORRECT - small 'a' in whatsapp
 } from "react-icons/fa";
 import SearchBar from "./SearchBar";
 import "./Navbar.css";
@@ -27,6 +28,7 @@ const Navbar = ({ onOpenHelp }) => {
     return () => {
       window.removeEventListener("storage", loadCartCount);
       window.removeEventListener("storage", checkLoginStatus);
+      document.body.classList.remove('mobile-menu-open');
     };
   }, []);
 
@@ -72,13 +74,20 @@ const Navbar = ({ onOpenHelp }) => {
   };
 
   const toggleMenu = () => {
-    setIsOpen(!isOpen);
+    const newState = !isOpen;
+    setIsOpen(newState);
     setIsDropdownOpen(false);
+    if (newState) {
+      document.body.classList.add('mobile-menu-open');
+    } else {
+      document.body.classList.remove('mobile-menu-open');
+    }
   };
 
   const closeMenu = () => {
     setIsOpen(false);
     setIsDropdownOpen(false);
+    document.body.classList.remove('mobile-menu-open');
   };
 
   const toggleDropdown = () => {
@@ -95,7 +104,7 @@ const Navbar = ({ onOpenHelp }) => {
   return (
     <nav className="navbar">
       <div className="nav-container">
-        {/* ===== LOGO (only image) ===== */}
+        {/* ===== LOGO ===== */}
         <Link to="/" className="nav-logo" onClick={closeMenu}>
           <img
             src={`${process.env.PUBLIC_URL}/assets/ELVRElogo1.png`}
@@ -205,7 +214,7 @@ const Navbar = ({ onOpenHelp }) => {
               </div>
             </div>
 
-            {/* ✅ Mobile Menu Links - Each on separate line */}
+            {/* ✅ Mobile Menu Links */}
             <Link to="/" onClick={toggleMenu} className="mob-link">
               <FaHome /> Home
             </Link>
@@ -216,6 +225,17 @@ const Navbar = ({ onOpenHelp }) => {
             <button className="mob-link mob-help-btn" onClick={() => { openHelp(); toggleMenu(); }}>
               <FaQuestionCircle /> Help
             </button>
+
+            {/* ✅ WhatsApp link - using FaWhatsapp (small 'a') */}
+            <a
+              href="https://wa.me/917906396629"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mob-link"
+              onClick={toggleMenu}
+            >
+              <FaWhatsapp /> WhatsApp
+            </a>
 
             {isHomePage ? (
               <>

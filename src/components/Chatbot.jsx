@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaPaperPlane, FaTimes, FaQuestionCircle, FaRobot } from "react-icons/fa";
 import chatbotService from "../services/chatbotService";
+import { supabase } from "../supabaseClient";
 import "./Chatbot.css";
 
 const initialMessages = [
@@ -33,6 +34,33 @@ const Chatbot = ({ isOpen = false, setIsOpen = () => {} }) => {
 
   const pushMessage = (msg) => setMessages((prev) => [...prev, msg]);
 
+  // helper: safely read current user object from localStorage
+  const getCurrentUser = () => {
+    try {
+      const raw = localStorage.getItem("currentUser");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed || null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  // helper: save conversation row to Supabase
+  async function saveConversation(userId, role, message) {
+    try {
+      await supabase.from("chatbot_conversations").insert([
+        {
+          user_id: userId || null,
+          role,
+          message,
+        },
+      ]);
+    } catch (err) {
+      console.error("saveConversation error:", err);
+    }
+  }
+
   const handleSend = async (messageText = input) => {
     const text = (messageText || "").trim();
     if (!text) return;
@@ -41,6 +69,14 @@ const Chatbot = ({ isOpen = false, setIsOpen = () => {} }) => {
     pushMessage(userMessage);
     setInput("");
     setIsTyping(true);
+    // save user message to DB (fire-and-forget but await to keep order)
+    try {
+      const currentUser = getCurrentUser();
+      await saveConversation(currentUser?.id || null, "user", text);
+    } catch (err) {
+      // saving should never block chat; just log
+      console.error("Error saving user message:", err);
+    }
 
     try {
       const resp = await chatbotService.getReply(text);
@@ -49,7 +85,16 @@ const Chatbot = ({ isOpen = false, setIsOpen = () => {} }) => {
 
       if (resp && resp.action && resp.action.type === "navigate" && resp.action.to) {
         // allow bot to say something and navigate
-        if (resp.text) pushMessage({ id: Date.now() + 1, sender: "bot", text: resp.text });
+        if (resp.text) {
+          pushMessage({ id: Date.now() + 1, sender: "bot", text: resp.text });
+          // save assistant reply
+          try {
+            const currentUser = getCurrentUser();
+            await saveConversation(currentUser?.id || null, "assistant", resp.text);
+          } catch (err) {
+            console.error("Error saving assistant message:", err);
+          }
+        }
         setIsTyping(false);
         navigate(resp.action.to);
         return;
@@ -57,6 +102,13 @@ const Chatbot = ({ isOpen = false, setIsOpen = () => {} }) => {
 
       const botMessage = { id: Date.now() + 1, sender: "bot", text: (resp && resp.text) || "" };
       pushMessage(botMessage);
+      // save assistant reply
+      try {
+        const currentUser = getCurrentUser();
+        await saveConversation(currentUser?.id || null, "assistant", botMessage.text);
+      } catch (err) {
+        console.error("Error saving assistant message:", err);
+      }
     } catch (err) {
       console.error("Chatbot handleSend error:", err);
       pushMessage({ id: Date.now() + 1, sender: "bot", text: "Something went wrong. Please try again later." });

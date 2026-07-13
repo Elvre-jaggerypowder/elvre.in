@@ -14,14 +14,13 @@ const Contact = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  const [contactInfo, setContactInfo] = useState({
+  const [contactInfo] = useState({
     phone1: "+91 7060998050",
     phone2: "+91 7906396629",
     email: "elvreofficals@gmail.com",
     address: "1st Floor, Sangam Tent House, Jawalapur, Haridwar, Uttrakhand, 249407"
   });
 
-  // Categories
   const categories = [
     { value: "general", label: "General Feedback", icon: "💬" },
     { value: "product", label: "Product Quality", icon: "🛍️" },
@@ -31,42 +30,48 @@ const Contact = () => {
     { value: "suggestion", label: "Suggestion / Idea", icon: "💡" }
   ];
 
+  // Load feedbacks on mount and set up real‑time subscription
   useEffect(() => {
     loadFeedbacks();
-    loadContactInfo();
-  }, []);
 
-  const loadContactInfo = () => {
-    const saved = localStorage.getItem("contactInfo");
-    if (saved) {
-      setContactInfo(JSON.parse(saved));
-    }
-  };
+    // ✅ Real‑time subscription for new feedbacks
+    const subscription = supabase
+      .channel('contact-feedbacks')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'Feedbacks' },
+        (payload) => {
+          console.log('📬 New feedback received:', payload.new);
+          setFeedbacks(prev => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Empty dependency so it runs only once
 
   const loadFeedbacks = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('feedbacks')
+        .from('Feedbacks')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5);
       
       if (error) {
         console.error('Supabase error:', error);
-        const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-        setFeedbacks(saved);
+        setFeedbacks([]);
       } else if (data && data.length > 0) {
         setFeedbacks(data);
-        localStorage.setItem("feedbacks", JSON.stringify(data));
+        localStorage.setItem("feedbacks", JSON.stringify(data)); // cache for offline
       } else {
-        const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-        setFeedbacks(saved);
+        setFeedbacks([]);
       }
     } catch (err) {
-      console.error('Error:', err);
-      const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-      setFeedbacks(saved);
+      console.error('Error loading feedbacks:', err);
+      setFeedbacks([]);
     }
     setLoading(false);
   };
@@ -89,7 +94,6 @@ const Contact = () => {
     }
 
     const newFeedback = {
-      id: Date.now(),
       name: formData.name,
       email: formData.email || "Not provided",
       message: formData.message,
@@ -101,7 +105,7 @@ const Contact = () => {
 
     try {
       const { error } = await supabase
-        .from('feedbacks')
+        .from('Feedbacks')
         .insert([newFeedback]);
       
       if (error) {
@@ -111,7 +115,9 @@ const Contact = () => {
       }
       
       console.log('✅ Feedback saved to Supabase!');
-      setFeedbacks([newFeedback, ...feedbacks]);
+      // The real‑time subscription will automatically add the new feedback,
+      // but we can also add it optimistically to avoid waiting.
+      setFeedbacks(prev => [{ id: Date.now(), ...newFeedback }, ...prev]);
       setFormData({ name: "", email: "", message: "", category: "general", rating: 5 });
       setStatus("✅ Thank you! Your feedback has been submitted.");
       setTimeout(() => setStatus(""), 3000);
@@ -131,11 +137,9 @@ const Contact = () => {
         </div>
 
         <div className="contact-grid">
-          {/* LEFT - Contact Info */}
           <div className="contact-info">
             <h3>Get in Touch</h3>
             <p className="contact-info-sub">We'd love to hear from you</p>
-            
             <div className="contact-info-items">
               <div className="contact-info-item">
                 <div className="contact-info-icon">📞</div>
@@ -162,13 +166,12 @@ const Contact = () => {
             </div>
           </div>
 
-          {/* RIGHT - Feedback Form */}
           <div className="contact-form">
             <h3>Share Your Experience</h3>
             <p className="form-subtitle">Help us serve you better</p>
 
             <form onSubmit={handleSubmit}>
-              {/* Rating Section */}
+              {/* Rating */}
               <div className="form-group rating-group">
                 <label>How was your experience? <span className="required">*</span></label>
                 <div className="rating-stars">
@@ -260,13 +263,13 @@ const Contact = () => {
           </div>
         </div>
 
-        {/* Recent Feedbacks */}
+        {/* Recent Feedbacks - Only if there are real ones */}
         {feedbacks.length > 0 && (
           <div className="recent-feedbacks">
             <h3>Recent Feedback</h3>
             <div className="feedback-list">
               {feedbacks.slice(0, 3).map((fb) => (
-                <div key={fb.id} className="feedback-item">
+                <div key={fb.id || fb.created_at} className="feedback-item">
                   <div className="feedback-item-header">
                     <div>
                       <strong>{fb.name}</strong>

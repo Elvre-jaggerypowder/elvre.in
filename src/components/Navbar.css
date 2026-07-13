@@ -375,7 +375,7 @@
 .mobile-search-compact {
   display: flex;
   align-items: center;
-  flex: 0 1 auto; /* Don't grow, don't shrink below content */
+  flex: 0 1 auto;
   max-width: 200px;
   min-width: 80px;
   background: rgba(255, 255, 255, 0.08);
@@ -383,7 +383,7 @@
   border-radius: 25px;
   overflow: hidden;
   transition: all 0.25s ease;
-  margin: 0 auto; /* Center within flex container */
+  margin: 0 auto;
 }
 
 .mobile-search-compact:focus-within {
@@ -502,12 +502,13 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* ===== MOBILE SLIDE MENU ===== */
+/* ===== MOBILE SLIDE MENU - FIXED ===== */
 .mobile-menu {
   position: fixed;
   top: 68px;
   left: 0;
   right: 0;
+  bottom: 0;                     /* Full height */
   background: var(--green-mid);
   max-height: 0;
   overflow: hidden;
@@ -517,7 +518,7 @@
 }
 
 .mobile-menu.open {
-  max-height: 600px;
+  max-height: 100vh;             /* Full viewport height */
   overflow-y: auto;
 }
 
@@ -652,7 +653,7 @@
   }
 
   .mobile-menu {
-    top: 58px;
+    top: 58px;                /* Updated */
   }
 
   .logo-img {
@@ -694,7 +695,7 @@
   }
 
   .mobile-menu {
-    top: 54px;
+    top: 54px;                /* Updated */
   }
 
   .logo-img {
@@ -710,7 +711,7 @@
     min-width: 60px;
     border-radius: 20px;
     border-width: 1.5px;
-    margin: 0 auto; /* ensure centering */
+    margin: 0 auto;
   }
 
   .mobile-search-compact:focus-within {

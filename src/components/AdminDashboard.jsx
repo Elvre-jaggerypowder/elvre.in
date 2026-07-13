@@ -53,7 +53,7 @@ const AdminDashboard = () => {
     category: "jaggery"
   });
 
-  // Check if admin is logged in
+  // ─── Auth Check ───
   useEffect(() => {
     const isAdmin = localStorage.getItem("adminLoggedIn");
     if (!isAdmin) {
@@ -61,7 +61,7 @@ const AdminDashboard = () => {
     }
   }, [navigate]);
 
-  // Load all data
+  // ─── Load all data ───
   useEffect(() => {
     loadProducts();
     loadOrders();
@@ -72,75 +72,77 @@ const AdminDashboard = () => {
     loadContactInfo();
   }, []);
 
-  // Real-time subscription for new users
+  // ─── REAL‑TIME SUBSCRIPTIONS (with safe reload) ───
   useEffect(() => {
-    const subscription = supabase
-      .channel('users-channel')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'users' }, 
-        (payload) => {
-          console.log('New user added in real-time!', payload.new);
-          setUsers(prev => [payload.new, ...prev]);
-        }
-      )
+    const sub = supabase
+      .channel('products-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => loadProducts())
       .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => sub.unsubscribe();
   }, []);
 
-  // Real-time subscription for new orders
   useEffect(() => {
-    const subscription = supabase
+    const sub = supabase
       .channel('orders-channel')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'orders' }, 
-        (payload) => {
-          console.log('New order added in real-time!', payload.new);
-          setOrders(prev => [payload.new, ...prev]);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => loadOrders())
       .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => sub.unsubscribe();
   }, []);
 
-  // Real-time subscription for new feedbacks
   useEffect(() => {
-    const subscription = supabase
-      .channel('feedbacks-channel')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'feedbacks' }, 
-        (payload) => {
-          console.log('New feedback added in real-time!', payload.new);
-          setFeedbacks(prev => [payload.new, ...prev]);
-        }
-      )
+    const sub = supabase
+      .channel('users-channel')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'users' }, (payload) => {
+        setUsers(prev => [payload.new, ...prev]);
+      })
       .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => sub.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const sub = supabase
+      .channel('feedbacks-channel')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Feedbacks' }, (payload) => {
+        setFeedbacks(prev => [payload.new, ...prev]);
+      })
+      .subscribe();
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = supabase
+      .channel('reviews-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => loadAllReviews())
+      .subscribe();
+    return () => sub.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const sub = supabase
+      .channel('coupons-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons' }, () => loadCoupons())
+      .subscribe();
+    return () => sub.unsubscribe();
+  }, []);
+
+  // ─── LOAD PRODUCTS (always set loading false) ───
   const loadProducts = async () => {
     try {
-      const { data: supabaseProducts, error } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('id', { ascending: true });
       
       if (error) {
-        console.error('Supabase error:', error);
-        const savedProducts = localStorage.getItem("elvreProducts");
-        if (savedProducts) {
-          setProducts(JSON.parse(savedProducts));
-        }
-      } else if (supabaseProducts && supabaseProducts.length > 0) {
-        const formattedProducts = supabaseProducts.map(p => ({
+        console.error('❌ Supabase load products error:', error);
+        // fallback to localStorage
+        const saved = localStorage.getItem("elvreProducts");
+        if (saved) setProducts(JSON.parse(saved));
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const formatted = data.map(p => ({
           id: p.id,
           name: p.name,
           description: p.description,
@@ -152,39 +154,33 @@ const AdminDashboard = () => {
           badge: p.badge,
           soldCount: p.sold_count || 0
         }));
-        setProducts(formattedProducts);
-        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+        setProducts(formatted);
+        localStorage.setItem("elvreProducts", JSON.stringify(formatted));
       } else {
-        const savedProducts = localStorage.getItem("elvreProducts");
-        if (savedProducts) {
-          setProducts(JSON.parse(savedProducts));
-        }
+        const saved = localStorage.getItem("elvreProducts");
+        if (saved) setProducts(JSON.parse(saved));
+        else setProducts([]);
       }
     } catch (err) {
-      console.error('Error loading products:', err);
-      const savedProducts = localStorage.getItem("elvreProducts");
-      if (savedProducts) {
-        setProducts(JSON.parse(savedProducts));
-      }
+      console.error('❌ Error loading products:', err);
+      const saved = localStorage.getItem("elvreProducts");
+      if (saved) setProducts(JSON.parse(saved));
+    } finally {
+      // ✅ always set loading false after this function
+      setLoading(false);
     }
-    setLoading(false);
   };
 
+  // ─── LOAD ORDERS ───
   const loadOrders = async () => {
     try {
-      const { data: supabaseOrders, error } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const savedOrders = localStorage.getItem("elvreOrders");
-        if (savedOrders) {
-          setOrders(JSON.parse(savedOrders));
-        }
-      } else if (supabaseOrders && supabaseOrders.length > 0) {
-        const formattedOrders = supabaseOrders.map(order => ({
+      if (error) throw error;
+      if (data && data.length > 0) {
+        const formatted = data.map(order => ({
           id: order.id,
           customer: order.customer,
           email: order.email,
@@ -201,36 +197,30 @@ const AdminDashboard = () => {
           orderDate: order.order_date,
           orderTime: order.order_time
         }));
-        setOrders(formattedOrders);
-        localStorage.setItem("elvreOrders", JSON.stringify(formattedOrders));
+        setOrders(formatted);
+        localStorage.setItem("elvreOrders", JSON.stringify(formatted));
       } else {
-        const savedOrders = localStorage.getItem("elvreOrders");
-        if (savedOrders) {
-          setOrders(JSON.parse(savedOrders));
-        }
+        const saved = localStorage.getItem("elvreOrders");
+        if (saved) setOrders(JSON.parse(saved));
+        else setOrders([]);
       }
     } catch (err) {
       console.error('Error loading orders:', err);
-      const savedOrders = localStorage.getItem("elvreOrders");
-      if (savedOrders) {
-        setOrders(JSON.parse(savedOrders));
-      }
+      const saved = localStorage.getItem("elvreOrders");
+      if (saved) setOrders(JSON.parse(saved));
     }
   };
 
+  // ─── LOAD USERS ───
   const loadUsers = async () => {
     try {
-      const { data: supabaseUsers, error } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const savedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-        setUsers(savedUsers);
-      } else if (supabaseUsers && supabaseUsers.length > 0) {
-        const formattedUsers = supabaseUsers.map(user => ({
+      if (error) throw error;
+      if (data && data.length > 0) {
+        const formatted = data.map(user => ({
           id: user.id,
           name: user.name,
           email: user.email,
@@ -238,103 +228,80 @@ const AdminDashboard = () => {
           createdAt: user.created_at,
           orders: orders.filter(o => o.email === user.email).length
         }));
-        setUsers(formattedUsers);
-        localStorage.setItem("users", JSON.stringify(formattedUsers));
+        setUsers(formatted);
+        localStorage.setItem("users", JSON.stringify(formatted));
       } else {
-        const savedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-        setUsers(savedUsers);
+        const saved = JSON.parse(localStorage.getItem("users") || "[]");
+        setUsers(saved);
       }
     } catch (err) {
       console.error('Error loading users:', err);
-      const savedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      setUsers(savedUsers);
+      const saved = JSON.parse(localStorage.getItem("users") || "[]");
+      setUsers(saved);
     }
   };
 
+  // ─── LOAD FEEDBACKS (table name: "Feedbacks") ───
   const loadFeedbacks = async () => {
     try {
-      const { data: supabaseFeedbacks, error } = await supabase
-        .from('feedbacks')
+      const { data, error } = await supabase
+        .from('Feedbacks')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const savedFeedbacks = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-        setFeedbacks(savedFeedbacks);
-      } else if (supabaseFeedbacks && supabaseFeedbacks.length > 0) {
-        setFeedbacks(supabaseFeedbacks);
-        localStorage.setItem("feedbacks", JSON.stringify(supabaseFeedbacks));
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setFeedbacks(data);
+        localStorage.setItem("feedbacks", JSON.stringify(data));
       } else {
-        const savedFeedbacks = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-        setFeedbacks(savedFeedbacks);
+        const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        setFeedbacks(saved);
       }
     } catch (err) {
       console.error('Error loading feedbacks:', err);
-      const savedFeedbacks = JSON.parse(localStorage.getItem("feedbacks") || "[]");
-      setFeedbacks(savedFeedbacks);
+      const saved = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+      setFeedbacks(saved);
     }
   };
 
+  // ─── LOAD COUPONS ───
   const loadCoupons = async () => {
     try {
-      const { data: supabaseCoupons, error } = await supabase
+      const { data, error } = await supabase
         .from('coupons')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
-        setCoupons(savedCoupons);
-      } else if (supabaseCoupons && supabaseCoupons.length > 0) {
-        setCoupons(supabaseCoupons);
-        localStorage.setItem("elvreCoupons", JSON.stringify(supabaseCoupons));
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setCoupons(data);
+        localStorage.setItem("elvreCoupons", JSON.stringify(data));
       } else {
-        const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
-        setCoupons(savedCoupons);
+        const saved = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
+        setCoupons(saved);
       }
     } catch (err) {
       console.error('Error loading coupons:', err);
-      const savedCoupons = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
-      setCoupons(savedCoupons);
+      const saved = JSON.parse(localStorage.getItem("elvreCoupons") || "[]");
+      setCoupons(saved);
     }
   };
 
+  // ─── LOAD REVIEWS ───
   const loadAllReviews = async () => {
     try {
-      const { data: supabaseReviews, error } = await supabase
+      const { data, error } = await supabase
         .from('reviews')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        const reviewsList = [];
-        const savedProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
-        savedProducts.forEach(product => {
-          const productReviews = localStorage.getItem(`reviews_${product.id}`);
-          if (productReviews) {
-            const reviews = JSON.parse(productReviews);
-            reviews.forEach(review => {
-              reviewsList.push({
-                ...review,
-                productId: product.id,
-                productName: product.name,
-                productImage: product.image
-              });
-            });
-          }
-        });
-        setAllReviews(reviewsList);
-      } else if (supabaseReviews && supabaseReviews.length > 0) {
-        const formattedReviews = supabaseReviews.map(review => ({
+      if (error) throw error;
+      if (data && data.length > 0) {
+        const formatted = data.map(review => ({
           ...review,
           productId: review.product_id,
           productName: review.product_name
         }));
-        setAllReviews(formattedReviews);
+        setAllReviews(formatted);
       } else {
+        // build from localStorage
         const reviewsList = [];
         const savedProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
         savedProducts.forEach(product => {
@@ -358,6 +325,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // ─── LOAD CONTACT INFO ───
   const loadContactInfo = () => {
     const saved = localStorage.getItem("contactInfo");
     if (saved) {
@@ -381,7 +349,6 @@ const AdminDashboard = () => {
       setMessage("Please fill all required fields");
       return;
     }
-    
     localStorage.setItem("contactInfo", JSON.stringify(contactFormData));
     setContactInfo(contactFormData);
     setEditContactMode(false);
@@ -395,17 +362,17 @@ const AdminDashboard = () => {
     window.dispatchEvent(new Event("productsUpdated"));
   };
 
+  // ─── ORDER STATUS & PAYMENT ───
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const { error: supabaseError } = await supabase
+      const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
-      if (supabaseError) console.error('Supabase error:', supabaseError);
+      if (error) throw error;
     } catch (err) {
-      console.error('Error updating Supabase:', err);
+      console.error('Supabase error:', err);
     }
-    
     const updatedOrders = orders.map(order =>
       order.id === orderId ? { ...order, status: newStatus } : order
     );
@@ -417,15 +384,14 @@ const AdminDashboard = () => {
 
   const updatePaymentStatus = async (orderId, newPaymentStatus) => {
     try {
-      const { error: supabaseError } = await supabase
+      const { error } = await supabase
         .from('orders')
         .update({ payment_status: newPaymentStatus })
         .eq('id', orderId);
-      if (supabaseError) console.error('Supabase error:', supabaseError);
+      if (error) throw error;
     } catch (err) {
-      console.error('Error updating Supabase:', err);
+      console.error('Supabase error:', err);
     }
-    
     const updatedOrders = orders.map(order =>
       order.id === orderId ? { ...order, paymentStatus: newPaymentStatus } : order
     );
@@ -435,50 +401,47 @@ const AdminDashboard = () => {
     setTimeout(() => setMessage(""), 3000);
   };
 
+  // ─── PRODUCT CRUD (SYNC WITH SUPABASE) ───
   const handleAddProduct = async () => {
     if (!formData.name || !formData.priceValue || !formData.stock) {
       setMessage("Please fill all required fields");
       return;
     }
-    
     const newProduct = {
       id: Date.now(),
       name: formData.name,
       description: formData.description || "Pure & Natural",
-      price: `₹${formData.priceValue}`,
-      priceValue: parseFloat(formData.priceValue),
+      price: parseFloat(formData.priceValue),
       stock: parseInt(formData.stock),
       image: formData.image || "/assets/jaggery.png",
       category: formData.category,
       badge: "New",
-      soldCount: 0
+      sold_count: 0,
+      created_at: new Date().toISOString()
     };
-    
+
     try {
-      const { error: supabaseError } = await supabase
+      const { error } = await supabase
         .from('products')
-        .insert([{
-          id: newProduct.id,
-          name: newProduct.name,
-          description: newProduct.description,
-          price: newProduct.priceValue,
-          stock: newProduct.stock,
-          image: newProduct.image,
-          category: newProduct.category,
-          badge: newProduct.badge,
-          sold_count: 0,
-          created_at: new Date().toISOString()
-        }]);
-      if (supabaseError) console.error('Supabase error:', supabaseError);
+        .insert([newProduct]);
+      if (error) {
+        console.error('❌ Supabase insert error:', error);
+        setMessage("Product saved locally but not to cloud.");
+      } else {
+        console.log('✅ Product saved to Supabase');
+        setMessage("Product added successfully!");
+      }
     } catch (err) {
-      console.error('Error saving to Supabase:', err);
+      console.error('❌ Error inserting product:', err);
+      setMessage("Error saving product. Please try again.");
     }
-    
-    const updatedProducts = [...products, newProduct];
+
+    // Update local state
+    const formattedProduct = { ...newProduct, price: `₹${newProduct.price}` };
+    const updatedProducts = [...products, formattedProduct];
     saveProducts(updatedProducts);
     setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery" });
     setShowAddForm(false);
-    setMessage("Product added successfully!");
     setTimeout(() => setMessage(""), 3000);
   };
 
@@ -496,79 +459,86 @@ const AdminDashboard = () => {
   };
 
   const handleUpdateProduct = async () => {
-    const updatedProducts = products.map(p => 
-      p.id === editingProduct.id 
-        ? {
-            ...p,
-            name: formData.name,
-            description: formData.description,
-            price: `₹${formData.priceValue}`,
-            priceValue: parseFloat(formData.priceValue),
-            stock: parseInt(formData.stock),
-            image: formData.image || p.image,
-            category: formData.category
-          }
-        : p
-    );
-    
-    const updatedProduct = updatedProducts.find(p => p.id === editingProduct.id);
-    
+    const updatedProduct = {
+      ...editingProduct,
+      name: formData.name,
+      description: formData.description,
+      price: parseFloat(formData.priceValue),
+      stock: parseInt(formData.stock),
+      image: formData.image || editingProduct.image,
+      category: formData.category
+    };
+
     try {
-      const { error: supabaseError } = await supabase
+      const { error } = await supabase
         .from('products')
         .update({
           name: updatedProduct.name,
           description: updatedProduct.description,
-          price: updatedProduct.priceValue,
+          price: updatedProduct.price,
           stock: updatedProduct.stock,
           image: updatedProduct.image,
           category: updatedProduct.category,
           badge: updatedProduct.badge
         })
         .eq('id', editingProduct.id);
-      if (supabaseError) console.error('Supabase update error:', supabaseError);
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        setMessage("Updated locally but not in cloud.");
+      } else {
+        console.log('✅ Product updated in Supabase');
+        setMessage("Product updated successfully!");
+      }
     } catch (err) {
-      console.error('Error updating Supabase:', err);
+      console.error('❌ Error updating product:', err);
+      setMessage("Error updating product.");
     }
-    
+
+    const updatedProducts = products.map(p =>
+      p.id === editingProduct.id ? { ...updatedProduct, price: `₹${updatedProduct.price}` } : p
+    );
     saveProducts(updatedProducts);
     setEditingProduct(null);
     setShowAddForm(false);
     setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery" });
-    setMessage("Product updated successfully!");
     setTimeout(() => setMessage(""), 3000);
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        const { error: supabaseError } = await supabase
-          .from('products')
-          .delete()
-          .eq('id', id);
-        if (supabaseError) console.error('Supabase delete error:', supabaseError);
-      } catch (err) {
-        console.error('Error deleting from Supabase:', err);
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+      if (error) {
+        console.error('❌ Supabase delete error:', error);
+        setMessage("Deleted locally but not from cloud.");
+      } else {
+        console.log('✅ Product deleted from Supabase');
+        setMessage("Product deleted successfully!");
       }
-      
-      const updatedProducts = products.filter(p => p.id !== id);
-      saveProducts(updatedProducts);
-      setMessage("Product deleted successfully!");
-      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      console.error('❌ Error deleting product:', err);
+      setMessage("Error deleting product.");
     }
+
+    const updatedProducts = products.filter(p => p.id !== id);
+    saveProducts(updatedProducts);
+    setTimeout(() => setMessage(""), 3000);
   };
 
+  // ─── COUPON CRUD ───
   const handleCreateCoupon = async () => {
     if (!newCoupon.code || !newCoupon.discount || !newCoupon.expiryDate) {
       setMessage("Please fill all required fields");
       return;
     }
-
     if (coupons.find(c => c.code === newCoupon.code.toUpperCase())) {
       setMessage("Coupon code already exists!");
       return;
     }
-
     const coupon = {
       id: Date.now(),
       code: newCoupon.code.toUpperCase(),
@@ -582,38 +552,35 @@ const AdminDashboard = () => {
       active: true,
       created_at: new Date().toISOString()
     };
-
     try {
       const { error } = await supabase.from('coupons').insert([coupon]);
-      if (error) console.error('Supabase error:', error);
+      if (error) throw error;
+      setMessage("Coupon created successfully!");
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Supabase error:', err);
+      setMessage("Error creating coupon.");
     }
-
     const updatedCoupons = [...coupons, coupon];
     setCoupons(updatedCoupons);
     localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
     setNewCoupon({ code: "", discount: "", type: "percentage", expiryDate: "", minOrder: 0, maxDiscount: 0, usageLimit: 0 });
-    setMessage("Coupon created successfully!");
     setTimeout(() => setMessage(""), 3000);
   };
 
   const toggleCouponStatus = async (couponId) => {
     const coupon = coupons.find(c => c.id === couponId);
     const newStatus = !coupon.active;
-    
     try {
       const { error } = await supabase
         .from('coupons')
         .update({ active: newStatus })
         .eq('id', couponId);
-      if (error) console.error('Supabase error:', error);
+      if (error) throw error;
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Supabase error:', err);
     }
-    
-    const updatedCoupons = coupons.map(coupon =>
-      coupon.id === couponId ? { ...coupon, active: newStatus } : coupon
+    const updatedCoupons = coupons.map(c =>
+      c.id === couponId ? { ...c, active: newStatus } : c
     );
     setCoupons(updatedCoupons);
     localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
@@ -622,39 +589,38 @@ const AdminDashboard = () => {
   };
 
   const deleteCoupon = async (couponId) => {
-    if (window.confirm("Delete this coupon?")) {
-      try {
-        const { error } = await supabase
-          .from('coupons')
-          .delete()
-          .eq('id', couponId);
-        if (error) console.error('Supabase error:', error);
-      } catch (err) {
-        console.error('Error:', err);
-      }
-      
-      const updatedCoupons = coupons.filter(coupon => coupon.id !== couponId);
-      setCoupons(updatedCoupons);
-      localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
+    if (!window.confirm("Delete this coupon?")) return;
+    try {
+      const { error } = await supabase
+        .from('coupons')
+        .delete()
+        .eq('id', couponId);
+      if (error) throw error;
       setMessage("Coupon deleted!");
-      setTimeout(() => setMessage(""), 2000);
+    } catch (err) {
+      console.error('Supabase error:', err);
+      setMessage("Error deleting coupon.");
     }
+    const updatedCoupons = coupons.filter(c => c.id !== couponId);
+    setCoupons(updatedCoupons);
+    localStorage.setItem("elvreCoupons", JSON.stringify(updatedCoupons));
+    setTimeout(() => setMessage(""), 2000);
   };
 
+  // ─── REVIEW MANAGEMENT ───
   const approveReview = async (reviewId, productId) => {
     try {
       const { error } = await supabase
         .from('reviews')
         .update({ approved: true, spam: false })
         .eq('id', reviewId);
-      if (error) console.error('Supabase error:', error);
+      if (error) throw error;
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Supabase error:', err);
     }
-    
     const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
-    const updatedReviews = productReviews.map(review =>
-      review.id === reviewId ? { ...review, approved: true, spam: false } : review
+    const updatedReviews = productReviews.map(r =>
+      r.id === reviewId ? { ...r, approved: true, spam: false } : r
     );
     localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
     loadAllReviews();
@@ -663,24 +629,22 @@ const AdminDashboard = () => {
   };
 
   const deleteReview = async (reviewId, productId) => {
-    if (window.confirm("Delete this review permanently?")) {
-      try {
-        const { error } = await supabase
-          .from('reviews')
-          .delete()
-          .eq('id', reviewId);
-        if (error) console.error('Supabase error:', error);
-      } catch (err) {
-        console.error('Error:', err);
-      }
-      
-      const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
-      const updatedReviews = productReviews.filter(review => review.id !== reviewId);
-      localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
-      loadAllReviews();
-      setMessage("Review deleted!");
-      setTimeout(() => setMessage(""), 2000);
+    if (!window.confirm("Delete this review permanently?")) return;
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Supabase error:', err);
     }
+    const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
+    const updatedReviews = productReviews.filter(r => r.id !== reviewId);
+    localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
+    loadAllReviews();
+    setMessage("Review deleted!");
+    setTimeout(() => setMessage(""), 2000);
   };
 
   const markAsSpam = async (reviewId, productId) => {
@@ -689,14 +653,13 @@ const AdminDashboard = () => {
         .from('reviews')
         .update({ spam: true, approved: false })
         .eq('id', reviewId);
-      if (error) console.error('Supabase error:', error);
+      if (error) throw error;
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Supabase error:', err);
     }
-    
     const productReviews = JSON.parse(localStorage.getItem(`reviews_${productId}`) || "[]");
-    const updatedReviews = productReviews.map(review =>
-      review.id === reviewId ? { ...review, spam: true, approved: false } : review
+    const updatedReviews = productReviews.map(r =>
+      r.id === reviewId ? { ...r, spam: true, approved: false } : r
     );
     localStorage.setItem(`reviews_${productId}`, JSON.stringify(updatedReviews));
     loadAllReviews();
@@ -710,23 +673,23 @@ const AdminDashboard = () => {
     window.location.href = "/";
   };
 
-  const isExpired = (expiryDate) => {
-    return new Date(expiryDate) < new Date();
-  };
+  const isExpired = (expiryDate) => new Date(expiryDate) < new Date();
 
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+  // ─── STATS ───
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
   const totalOrders = orders.length;
-  const pendingOrders = orders.filter(order => order.status === "pending" || order.status === "processing").length;
+  const pendingOrders = orders.filter(o => o.status === "pending" || o.status === "processing").length;
   const totalProducts = products.length;
-  const lowStockProducts = products.filter(product => product.stock < 20).length;
+  const lowStockProducts = products.filter(p => p.stock < 20).length;
   const totalUsers = users.length;
   const totalFeedbacks = feedbacks.length;
-  const pendingPayments = orders.filter(order => order.paymentStatus === "pending").length;
-  const pendingRefunds = orders.filter(order => order.status === "cancelled" && order.paymentStatus !== "refunded").length;
+  const pendingPayments = orders.filter(o => o.paymentStatus === "pending").length;
+  const pendingRefunds = orders.filter(o => o.status === "cancelled" && o.paymentStatus !== "refunded").length;
   
   const recentOrders = orders.slice(0, 5);
   const topProducts = [...products].sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0)).slice(0, 5);
 
+  // ─── Render ───
   if (loading) {
     return <div className="admin-loading">Loading Dashboard...</div>;
   }
@@ -1035,7 +998,7 @@ const AdminDashboard = () => {
                     <tr><td colSpan="5" className="no-data">No feedbacks yet</td></tr>
                   ) : (
                     feedbacks.map((fb, idx) => (
-                      <tr key={fb.id}>
+                      <tr key={fb.id || idx}>
                         <td>{idx + 1}</td>
                         <td>{fb.name}</td>
                         <td>{fb.email}</td>

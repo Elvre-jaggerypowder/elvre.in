@@ -45,11 +45,13 @@ function formatOrdersSummary(orders, lang = "en") {
 
 async function logConversation(userQuery, botReply, meta = {}) {
   try {
+    // Insert into chatbot_conversations using canonical columns: user_id, role, message
+    // For legacy compatibility we store the user's query as role 'user' and bot reply as 'assistant' when logging both together.
     await supabase.from("chatbot_conversations").insert([
       {
-        user_query: userQuery,
-        bot_reply: botReply,
-        meta: JSON.stringify(meta),
+        user_id: null,
+        role: "system",
+        message: `User: ${userQuery} | Bot: ${botReply} | meta: ${JSON.stringify(meta)}`,
       },
     ]);
   } catch (err) {

@@ -27,55 +27,28 @@ const ProductsPage = () => {
     { id: "special", name: "Special", icon: "⭐" }
   ];
 
-  useEffect(() => {
-    loadProducts();
-    loadReviews();
-    window.addEventListener("productsUpdated", loadProducts);
-    return () => window.removeEventListener("productsUpdated", loadProducts);
-  }, []);
-
-  // ✅ Auto view mode based on screen size
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth <= 768) {
-        setViewMode("list");
-      } else {
-        setViewMode("grid");
-      }
-    };
-    
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const search = params.get("search");
-    if (search) setSearchQuery(search);
-  }, [location.search]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
-
+  // ─── LOAD PRODUCTS (PRIMARY: SUPABASE, FALLBACK: LOCALSTORAGE) ───
   const loadProducts = async () => {
+    setLoading(true);
     try {
-      const { data: supabaseProducts, error } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('id', { ascending: true });
       
       if (error) {
-        console.error('Supabase error:', error);
-        const savedProducts = localStorage.getItem("elvreProducts");
-        if (savedProducts) {
-          setProducts(JSON.parse(savedProducts));
+        console.error('❌ Supabase error:', error);
+        // Fallback to localStorage
+        const cached = localStorage.getItem("elvreProducts");
+        if (cached) {
+          console.log('📦 Loaded from localStorage (fallback)');
+          setProducts(JSON.parse(cached));
         } else {
-          setDefaultProducts();
+          setProducts([]);
         }
-      } else if (supabaseProducts && supabaseProducts.length > 0) {
-        const formattedProducts = supabaseProducts.map(p => ({
+      } else if (data && data.length > 0) {
+        console.log(`✅ Loaded ${data.length} products from Supabase`);
+        const formatted = data.map(p => ({
           id: p.id,
           name: p.name,
           description: p.description,
@@ -87,92 +60,146 @@ const ProductsPage = () => {
           badge: p.badge,
           soldCount: p.sold_count || 0
         }));
-        setProducts(formattedProducts);
-        localStorage.setItem("elvreProducts", JSON.stringify(formattedProducts));
+        setProducts(formatted);
+        // Update cache
+        localStorage.setItem("elvreProducts", JSON.stringify(formatted));
       } else {
-        setDefaultProducts();
+        // No products in Supabase – use localStorage (if any)
+        const cached = localStorage.getItem("elvreProducts");
+        if (cached) {
+          console.log('📦 Loaded from localStorage (cache)');
+          setProducts(JSON.parse(cached));
+        } else {
+          console.log('📭 No products found – showing empty');
+          setProducts([]);
+        }
       }
     } catch (err) {
-      console.error('Error loading products:', err);
-      setDefaultProducts();
+      console.error('❌ Error loading products:', err);
+      // Last resort: localStorage
+      const cached = localStorage.getItem("elvreProducts");
+      if (cached) setProducts(JSON.parse(cached));
+      else setProducts([]);
     }
     setLoading(false);
   };
 
-  const setDefaultProducts = () => {
-    const defaultProducts = [
-      {
-        id: 1,
-        name: "ELVRE Organic Jaggery Powder",
-        description: "500g - Chemical Free, Natural Sweetener. Rich in iron and minerals.",
-        price: "₹149",
-        priceValue: 149,
-        stock: 50,
-        image: "/assets/jaggery.png",
-        category: "jaggery",
-        badge: "Bestseller",
-        soldCount: 0
-      },
-      {
-        id: 2,
-        name: "ELVRE Palm Jaggery",
-        description: "500g - Rich in Minerals. Made from fresh palm sap.",
-        price: "₹199",
-        priceValue: 199,
-        stock: 35,
-        image: "/assets/productpacking.png",
-        category: "jaggery",
-        badge: "Popular",
-        soldCount: 0
-      },
-      {
-        id: 3,
-        name: "ELVRE Gift Pack",
-        description: "500g x 2 - Special Edition. Perfect for gifting.",
-        price: "₹299",
-        priceValue: 299,
-        stock: 20,
-        image: "/assets/bowl.png",
-        category: "special",
-        badge: "Limited",
-        soldCount: 0
+  // ─── LOAD REVIEWS (for ratings) ───
+  const loadReviews = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*');
+      
+      if (error) {
+        console.error('❌ Reviews error:', error);
+        // fallback to localStorage
+        const saved = JSON.parse(localStorage.getItem("productReviews") || "{}");
+        setReviews(saved);
+        return;
       }
-    ];
-    setProducts(defaultProducts);
-    localStorage.setItem("elvreProducts", JSON.stringify(defaultProducts));
+
+      if (data && data.length > 0) {
+        const reviewMap = {};
+        data.forEach(review => {
+          const pid = review.product_id;
+          if (!reviewMap[pid]) {
+            reviewMap[pid] = { total: 0, count: 0 };
+          }
+          reviewMap[pid].total += review.rating;
+          reviewMap[pid].count += 1;
+        });
+        const formatted = {};
+        Object.keys(reviewMap).forEach(pid => {
+          const avg = reviewMap[pid].total / reviewMap[pid].count;
+          formatted[pid] = {
+            rating: avg.toFixed(1),
+            count: reviewMap[pid].count
+          };
+        });
+        setReviews(formatted);
+        localStorage.setItem("productReviews", JSON.stringify(formatted));
+      } else {
+        setReviews({});
+        localStorage.removeItem("productReviews");
+      }
+    } catch (err) {
+      console.error('❌ Error loading reviews:', err);
+      setReviews({});
+    }
   };
 
-  const loadReviews = () => {
-    const savedReviews = {};
-    products.forEach(product => {
-      const productReviews = localStorage.getItem(`reviews_${product.id}`);
-      if (productReviews) {
-        const reviewList = JSON.parse(productReviews);
-        const avgRating = reviewList.reduce((sum, r) => sum + r.rating, 0) / reviewList.length;
-        savedReviews[product.id] = { rating: avgRating.toFixed(1), count: reviewList.length };
-      } else {
-        savedReviews[product.id] = { rating: 4.5, count: 0 };
-      }
-    });
-    setReviews(savedReviews);
-  };
+  // ─── INITIAL LOAD ───
+  useEffect(() => {
+    loadProducts();
+    loadReviews();
+
+    // Listen for manual refresh events from admin
+    const handleProductsUpdated = () => {
+      console.log('🔄 Manual products update event received');
+      loadProducts();
+    };
+    window.addEventListener("productsUpdated", handleProductsUpdated);
+
+    return () => {
+      window.removeEventListener("productsUpdated", handleProductsUpdated);
+    };
+  }, []);
+
+  // ─── REAL‑TIME SUBSCRIPTION ───
+  useEffect(() => {
+    const subscription = supabase
+      .channel('products-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          console.log('🔄 Real‑time product change detected:', payload);
+          loadProducts();
+        }
+      )
+      .subscribe();
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ─── AUTO VIEW MODE ───
+  useEffect(() => {
+    const handleResize = () => {
+      setViewMode(window.innerWidth <= 768 ? "list" : "grid");
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // ─── SEARCH FROM URL ───
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get("search");
+    if (search) setSearchQuery(search);
+  }, [location.search]);
+
+  // ─── APPLY FILTERS ───
+  useEffect(() => {
+    applyFilters();
+  }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
 
   const applyFilters = () => {
     let filtered = [...products];
 
     if (searchQuery) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(product => product.category === selectedCategory);
+      filtered = filtered.filter(p => p.category === selectedCategory);
     }
 
-    filtered = filtered.filter(product =>
-      product.priceValue >= priceRange.min && product.priceValue <= priceRange.max
+    filtered = filtered.filter(p =>
+      p.priceValue >= priceRange.min && p.priceValue <= priceRange.max
     );
 
     switch (sortBy) {
@@ -183,7 +210,7 @@ const ProductsPage = () => {
         filtered.sort((a, b) => b.priceValue - a.priceValue);
         break;
       case "rating":
-        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        filtered.sort((a, b) => (reviews[a.id]?.rating || 0) - (reviews[b.id]?.rating || 0));
         break;
       case "name-asc":
         filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -205,17 +232,14 @@ const ProductsPage = () => {
 
   const addToCart = (product) => {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const existingItem = cart.find(item => item.id === product.id);
-    
-    if (existingItem) {
-      existingItem.quantity = (existingItem.quantity || 1) + 1;
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) {
+      existing.quantity = (existing.quantity || 1) + 1;
     } else {
       cart.push({ ...product, quantity: 1 });
     }
-    
     localStorage.setItem("cart", JSON.stringify(cart));
     window.dispatchEvent(new Event("storage"));
-    
     const toast = document.createElement("div");
     toast.className = "cart-toast";
     toast.innerHTML = `✓ ${product.name} added to cart!`;
@@ -232,13 +256,14 @@ const ProductsPage = () => {
     return (
       <>
         <Navbar />
-        <div className="products-loading">Loading amazing products...</div>
+        <div className="products-loading">Loading products...</div>
         <Footer />
         <WhatsApp />
       </>
     );
   }
 
+  // ─── RENDER ───
   return (
     <>
       <Navbar />
@@ -266,13 +291,13 @@ const ProductsPage = () => {
             </div>
           </div>
 
-          {/* ✅ Filter Toggle for Mobile */}
+          {/* Filter Toggle for Mobile */}
           <button className="filter-toggle-btn" onClick={() => setShowFilters(!showFilters)}>
             {showFilters ? "▲ Hide Filters" : "▼ Show Filters"}
           </button>
 
           <div className="products-layout">
-            {/* ✅ Filters Sidebar */}
+            {/* Filters Sidebar */}
             <div className={`filters-sidebar ${showFilters ? "active" : ""}`}>
               <div className="filter-header">
                 <h3>Filters</h3>
@@ -280,7 +305,6 @@ const ProductsPage = () => {
                 <button className="filter-close-btn" onClick={() => setShowFilters(false)}>✕</button>
               </div>
 
-              {/* Categories */}
               <div className="filter-group">
                 <h4>Categories</h4>
                 <div className="category-list">
@@ -298,7 +322,6 @@ const ProductsPage = () => {
                 </div>
               </div>
 
-              {/* Price Range */}
               <div className="filter-group">
                 <h4>Price Range</h4>
                 <div className="price-range-display">
@@ -337,7 +360,6 @@ const ProductsPage = () => {
                 </div>
               </div>
 
-              {/* Sort By */}
               <div className="filter-group">
                 <h4>Sort By</h4>
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sort-select">
@@ -349,7 +371,6 @@ const ProductsPage = () => {
                 </select>
               </div>
 
-              {/* ✅ Apply Filters Button */}
               <button className="apply-filters-btn" onClick={() => setShowFilters(false)}>
                 Apply Filters
               </button>
@@ -408,7 +429,7 @@ const ProductsPage = () => {
                           </div>
                           <span>({reviews[product.id]?.count || 0} reviews)</span>
                         </div>
-                        <p className="product-description">{product.description.substring(0, 80)}...</p>
+                        <p className="product-description">{product.description?.substring(0, 80)}...</p>
                         <div className="product-price">
                           <span className="current-price">{product.price}</span>
                           <span className="original-price">₹{Math.round(product.priceValue * 1.2)}</span>

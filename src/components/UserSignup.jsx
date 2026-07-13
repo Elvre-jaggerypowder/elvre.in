@@ -43,7 +43,7 @@ const UserSignup = () => {
       return;
     }
     
-    // ✅ Check for fake/disposable email domains
+    // ✅ Block disposable email domains
     const fakeDomains = [
       'tempmail.com', '10minutemail.com', 'guerrillamail.com', 
       'mailinator.com', 'yopmail.com', 'throwawaymail.com',
@@ -58,12 +58,19 @@ const UserSignup = () => {
     setLoading(true);
     
     try {
-      // Check if email already exists
+      // Check if email already exists (Supabase)
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('email')
         .eq('email', email)
-        .single();
+        .maybeSingle();  // Use maybeSingle() to avoid PGRST116 error if no row
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Supabase check error:', checkError);
+        setError("Unable to verify email. Please try again.");
+        setLoading(false);
+        return;
+      }
       
       if (existingUser) {
         setError("Email already registered");
@@ -71,7 +78,7 @@ const UserSignup = () => {
         return;
       }
       
-      // Save to Supabase
+      // ✅ Save to Supabase
       const { data: supabaseData, error: supabaseError } = await supabase
         .from('users')
         .insert([
@@ -79,7 +86,7 @@ const UserSignup = () => {
             name: name, 
             email: email, 
             password: password,
-            phone: '',
+            phone: '',          // optional; you can remove if NULL allowed
             created_at: new Date().toISOString()
           }
         ]);
@@ -97,7 +104,7 @@ const UserSignup = () => {
 
       console.log('User saved to Supabase:', supabaseData);
       
-      // Save to localStorage for backup
+      // ✅ Save to localStorage for backup (optional)
       const users = JSON.parse(localStorage.getItem("users") || "[]");
       const newUser = {
         id: Date.now(),

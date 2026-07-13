@@ -21,23 +21,45 @@ const ProductDetails = () => {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
 
+  // Helper: product images (fallback)
   const productImages = [
-    "/assets/jaggery.png",
+    product?.image || "/assets/jaggery.png",
     "/assets/productpacking.png",
     "/assets/bowl.png"
   ];
 
+  // ─── LOAD PRODUCT & REVIEWS, SET UP REAL-TIME ───
   useEffect(() => {
     loadProduct();
     loadReviews();
-    window.addEventListener("productsUpdated", loadProduct);
-    return () => window.removeEventListener("productsUpdated", loadProduct);
+
+    // Real‑time subscription for product updates (stock, price, etc.)
+    const productSub = supabase
+      .channel('product-details')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'products', filter: `id=eq.${parseInt(id)}` }, 
+        (payload) => {
+          console.log('🔄 Product updated:', payload.new);
+          setProduct(prev => ({ ...prev, ...payload.new }));
+        }
+      )
+      .subscribe();
+
+    // Listen for manual "productsUpdated" event (from admin panel)
+    const handleProductsUpdated = () => loadProduct();
+    window.addEventListener("productsUpdated", handleProductsUpdated);
+
+    return () => {
+      productSub.unsubscribe();
+      window.removeEventListener("productsUpdated", handleProductsUpdated);
+    };
   }, [id]);
 
+  // ─── LOAD PRODUCT ───
   const loadProduct = async () => {
     setLoading(true);
     try {
-      // First try Supabase
+      // 1️⃣ Try Supabase first
       const { data: supabaseProduct, error } = await supabase
         .from('products')
         .select('*')
@@ -45,7 +67,6 @@ const ProductDetails = () => {
         .single();
       
       if (!error && supabaseProduct) {
-        // Format product
         const foundProduct = {
           id: supabaseProduct.id,
           name: supabaseProduct.name,
@@ -53,7 +74,7 @@ const ProductDetails = () => {
           price: `₹${supabaseProduct.price}`,
           priceValue: supabaseProduct.price,
           stock: supabaseProduct.stock,
-          image: supabaseProduct.image,
+          image: supabaseProduct.image || "/assets/jaggery.png",
           category: supabaseProduct.category,
           badge: supabaseProduct.badge,
           soldCount: supabaseProduct.sold_count || 0,
@@ -89,33 +110,32 @@ const ProductDetails = () => {
           ]
         };
         setProduct(foundProduct);
-        
-        // Related products
+        // Update localStorage cache
         const savedProducts = localStorage.getItem("elvreProducts");
         if (savedProducts) {
           const products = JSON.parse(savedProducts);
-          const related = products.filter(p => p.category === foundProduct.category && p.id !== parseInt(id)).slice(0, 4);
-          setRelatedProducts(related);
+          const updated = products.map(p => p.id === foundProduct.id ? foundProduct : p);
+          localStorage.setItem("elvreProducts", JSON.stringify(updated));
         }
       } else {
-        // Fallback to localStorage
+        // 2️⃣ Fallback to localStorage
         const savedProducts = localStorage.getItem("elvreProducts");
         if (savedProducts) {
           const products = JSON.parse(savedProducts);
           const foundProduct = products.find(p => p.id === parseInt(id));
-          if (foundProduct) {
-            setProduct(foundProduct);
-          }
+          if (foundProduct) setProduct(foundProduct);
         }
       }
     } catch (err) {
-      console.error('Error loading product:', err);
+      console.error('❌ loadProduct error:', err);
     }
     setLoading(false);
   };
 
+  // ─── LOAD REVIEWS ───
   const loadReviews = async () => {
     try {
+      // 1️⃣ Try Supabase
       const { data: supabaseReviews, error } = await supabase
         .from('reviews')
         .select('*')
@@ -123,25 +143,31 @@ const ProductDetails = () => {
         .order('created_at', { ascending: false });
       
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('⚠️ Supabase load reviews error:', error);
+        // fallback to localStorage
         const savedReviews = localStorage.getItem(`reviews_${id}`);
-        if (savedReviews) {
-          setReviews(JSON.parse(savedReviews));
-        }
-      } else if (supabaseReviews && supabaseReviews.length > 0) {
+        if (savedReviews) setReviews(JSON.parse(savedReviews));
+        return;
+      }
+      
+      if (supabaseReviews && supabaseReviews.length > 0) {
         setReviews(supabaseReviews);
         localStorage.setItem(`reviews_${id}`, JSON.stringify(supabaseReviews));
       } else {
+        // 2️⃣ Fallback to localStorage if Supabase has none
         const savedReviews = localStorage.getItem(`reviews_${id}`);
-        if (savedReviews) {
-          setReviews(JSON.parse(savedReviews));
-        }
+        if (savedReviews) setReviews(JSON.parse(savedReviews));
+        else setReviews([]);
       }
     } catch (err) {
-      console.error('Error loading reviews:', err);
+      console.error('❌ loadReviews error:', err);
+      // last resort: localStorage
+      const savedReviews = localStorage.getItem(`reviews_${id}`);
+      if (savedReviews) setReviews(JSON.parse(savedReviews));
     }
   };
 
+  // ─── SUBMIT REVIEW ───
   const submitReview = async (e) => {
     e.preventDefault();
     if (!newReview.name || !newReview.comment) {
@@ -166,14 +192,22 @@ const ProductDetails = () => {
     };
 
     try {
+      // ✅ INSERT INTO SUPABASE
       const { error } = await supabase
         .from('reviews')
         .insert([review]);
-      if (error) console.error('Supabase error:', error);
+
+      if (error) {
+        console.error('❌ Supabase insert review error:', error);
+        // Still update UI so user doesn't lose their review
+      } else {
+        console.log('✅ Review saved to Supabase');
+      }
     } catch (err) {
-      console.error('Error saving to Supabase:', err);
+      console.error('❌ Unexpected review save error:', err);
     }
 
+    // Always update local state and cache
     const updatedReviews = [review, ...reviews];
     setReviews(updatedReviews);
     localStorage.setItem(`reviews_${id}`, JSON.stringify(updatedReviews));
@@ -184,6 +218,7 @@ const ProductDetails = () => {
     setTimeout(() => setShowNotification(false), 3000);
   };
 
+  // ─── CART ACTIONS ───
   const addToCart = () => {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find(item => item.id === product.id);
@@ -224,12 +259,13 @@ const ProductDetails = () => {
   if (loading) return <div className="loading">Loading...</div>;
   if (!product) return <div className="not-found">Product not found</div>;
 
+  // ─── RENDER ───
   return (
     <>
       <Navbar />
       <div className="product-detail-page">
         <div className="product-detail-container">
-          {/* Sticky Back Button */}
+          {/* Back Button */}
           <div className="back-btn-wrapper">
             <button className="back-btn" onClick={() => navigate(-1)}>
               <span className="back-icon">←</span> Back

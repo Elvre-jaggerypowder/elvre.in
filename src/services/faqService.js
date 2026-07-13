@@ -8,13 +8,9 @@ export async function searchFaqs(query) {
   if (!query || !query.trim()) return [];
   const q = query.trim();
   try {
-    // search in question, answer, and keywords fields
-    const orExpr = `question.ilike.%${q}%,answer.ilike.%${q}%,keywords.ilike.%${q}%`;
-    const { data, error } = await supabase
-      .from("chatbot_faqs")
-      .select("id,question,answer,keywords")
-      .or(orExpr)
-      .limit(10);
+    // Search only question and answer fields to avoid referencing non-existing columns.
+    const orExpr = `question.ilike.%${q}%,answer.ilike.%${q}%`;
+    const { data, error } = await supabase.from("chatbot_faqs").select("id,question,answer").or(orExpr).limit(10);
 
     if (error) {
       console.error("faqService.searchFaqs error:", error);

@@ -11,37 +11,47 @@ const OrderTracking = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ─── Load order and set up real‑time subscription ───
   useEffect(() => {
     loadOrder();
+
+    // ✅ Real‑time subscription for this specific order
+    const subscription = supabase
+      .channel(`order-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`
+        },
+        (payload) => {
+          console.log('🔄 Order status updated:', payload.new);
+          setOrder(prev => ({ ...prev, ...payload.new }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [orderId]);
 
+  // ─── LOAD ORDER ───
   const loadOrder = async () => {
-    console.log('Searching for order ID:', orderId);
-    
-    // ✅ First check localStorage
-    const localOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
-    let foundOrder = localOrders.find(o => o.id === orderId);
-    
-    if (foundOrder) {
-      console.log('✅ Order found in localStorage:', foundOrder);
-      setOrder(foundOrder);
-      setLoading(false);
-      return;
-    }
-    
-    // ✅ If not in localStorage, check Supabase
+    setLoading(true);
+    console.log('🔍 Searching for order ID:', orderId);
+
     try {
+      // ✅ 1. Try Supabase
       const { data, error } = await supabase
         .from('orders')
         .select('*')
         .eq('id', orderId)
         .single();
-      
-      if (error) {
-        console.error('Supabase error:', error);
-      }
-      
-      if (data) {
+
+      if (!error && data) {
         console.log('✅ Order found in Supabase:', data);
         const formattedOrder = {
           id: data.id,
@@ -49,30 +59,40 @@ const OrderTracking = () => {
           email: data.email,
           phone: data.phone,
           address: data.address,
-          products: data.products,
-          subtotal: data.subtotal,
-          shipping: data.shipping,
-          discount: data.discount,
-          total: data.total,
-          status: data.status,
-          paymentMethod: data.payment_method,
+          products: data.products || [],
+          subtotal: data.subtotal || 0,
+          shipping: data.shipping || 0,
+          discount: data.discount || 0,
+          total: data.total || 0,
+          status: data.status || 'pending',
+          paymentMethod: data.payment_method || 'Cash on Delivery',
           orderDate: data.order_date,
           orderTime: data.order_time,
-          fullDateTime: `${data.order_date} at ${data.order_time}`
+          fullDateTime: `${data.order_date} at ${data.order_time || 'N/A'}`
         };
         setOrder(formattedOrder);
         setLoading(false);
         return;
       }
     } catch (err) {
-      console.error('Error fetching from Supabase:', err);
+      console.error('⚠️ Supabase fetch error:', err);
     }
-    
-    console.log('❌ Order not found:', orderId);
-    setOrder(null);
+
+    // ✅ 2. Fallback to localStorage
+    const localOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
+    const foundOrder = localOrders.find(o => o.id === orderId);
+
+    if (foundOrder) {
+      console.log('✅ Order found in localStorage:', foundOrder);
+      setOrder(foundOrder);
+    } else {
+      console.log('❌ Order not found:', orderId);
+      setOrder(null);
+    }
     setLoading(false);
   };
 
+  // ─── STATUS STEPS ───
   const getStatusStep = (currentStatus) => {
     const steps = [
       { key: "pending", label: "Order Placed", icon: "📦", description: "Your order has been received" },
@@ -91,6 +111,7 @@ const OrderTracking = () => {
     }));
   };
 
+  // ─── LOADING STATE ───
   if (loading) {
     return (
       <>
@@ -104,6 +125,7 @@ const OrderTracking = () => {
     );
   }
 
+  // ─── NOT FOUND ───
   if (!order) {
     return (
       <>
@@ -124,6 +146,7 @@ const OrderTracking = () => {
 
   const statusSteps = getStatusStep(order.status);
 
+  // ─── MAIN RENDER ───
   return (
     <>
       <Navbar />
@@ -135,7 +158,9 @@ const OrderTracking = () => {
             <div className="order-header">
               <div>
                 <h3>Order #{order.id}</h3>
-                <p className="order-date">Placed on: {order.fullDateTime || `${order.orderDate} at ${order.orderTime}`}</p>
+                <p className="order-date">
+                  Placed on: {order.fullDateTime || `${order.orderDate} at ${order.orderTime || 'N/A'}`}
+                </p>
               </div>
               <div className={`order-status-badge status-${order.status}`}>
                 {order.status === "pending" && "⏳ Pending"}
@@ -163,25 +188,29 @@ const OrderTracking = () => {
           <div className="order-details-card">
             <h3>Order Details</h3>
             <div className="products-list">
-              {order.products && order.products.map((product, idx) => {
-                const productPrice = product.price || product.priceValue || 0;
-                const productQty = product.quantity || 1;
-                const productTotal = productPrice * productQty;
-                
-                return (
-                  <div key={idx} className="order-product">
-                    <img src={product.image || "/assets/jaggery.png"} alt={product.name} className="product-image" />
-                    <div className="product-info">
-                      <h4>{product.name}</h4>
-                      <div className="product-meta">
-                        <span className="product-price">₹{productPrice}</span>
-                        <span className="product-quantity">Quantity: {productQty}</span>
+              {order.products && order.products.length > 0 ? (
+                order.products.map((product, idx) => {
+                  const productPrice = product.price || product.priceValue || 0;
+                  const productQty = product.quantity || 1;
+                  const productTotal = productPrice * productQty;
+                  
+                  return (
+                    <div key={idx} className="order-product">
+                      <img src={product.image || "/assets/jaggery.png"} alt={product.name} className="product-image" />
+                      <div className="product-info">
+                        <h4>{product.name}</h4>
+                        <div className="product-meta">
+                          <span className="product-price">₹{productPrice}</span>
+                          <span className="product-quantity">Quantity: {productQty}</span>
+                        </div>
                       </div>
+                      <div className="product-total">₹{productTotal}</div>
                     </div>
-                    <div className="product-total">₹{productTotal}</div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <p className="no-products-msg">No product details available.</p>
+              )}
             </div>
             
             <div className="price-summary">

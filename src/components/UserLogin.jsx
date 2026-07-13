@@ -12,7 +12,7 @@ const UserLogin = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Admin credentials
+  // Admin credentials (hardcoded for demo; can be moved to .env)
   const ADMIN_EMAIL = "elvreofficals@gmail.com";
   const ADMIN_PASSWORD = "Elvre@2024";
 
@@ -20,66 +20,72 @@ const UserLogin = () => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    
-    // Check if admin login
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+
+    // Trim email to avoid accidental spaces
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    // ✅ Check admin login first
+    if (trimmedEmail === ADMIN_EMAIL && trimmedPassword === ADMIN_PASSWORD) {
       localStorage.setItem("adminLoggedIn", "true");
       localStorage.removeItem("currentUser");
       setLoading(false);
       navigate("/admin-dashboard");
       return;
     }
-    
+
     try {
-      // ✅ Check from Supabase first
-      const { data: supabaseUsers, error: supabaseError } = await supabase
+      // ✅ Query Supabase for the user (use maybeSingle to return one row)
+      const { data: user, error: supabaseError } = await supabase
         .from('users')
         .select('*')
-        .eq('email', email)
-        .eq('password', password);
-      
+        .eq('email', trimmedEmail)
+        .eq('password', trimmedPassword)
+        .maybeSingle();
+
       if (supabaseError) {
         console.error('Supabase error:', supabaseError);
+        // Continue to localStorage fallback; don't return here, we want to try localStorage anyway.
       }
-      
-      if (supabaseUsers && supabaseUsers.length > 0) {
+
+      if (user) {
         // User found in Supabase
-        const user = supabaseUsers[0];
         localStorage.setItem("currentUser", JSON.stringify({
           id: user.id,
           name: user.name,
           email: user.email,
-          phone: user.phone
+          phone: user.phone || ''
         }));
         localStorage.removeItem("adminLoggedIn");
         setLoading(false);
-        
+
         const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
         localStorage.removeItem("redirectAfterLogin");
         navigate(redirectTo);
         return;
       }
-      
-      // ✅ If not in Supabase, check localStorage
+
+      // ✅ If not in Supabase, check localStorage (backup)
       const users = JSON.parse(localStorage.getItem("users") || "[]");
-      const user = users.find(u => u.email === email && u.password === password);
-      
-      if (user) {
-        localStorage.setItem("currentUser", JSON.stringify(user));
+      const localUser = users.find(u => u.email === trimmedEmail && u.password === trimmedPassword);
+
+      if (localUser) {
+        localStorage.setItem("currentUser", JSON.stringify(localUser));
         localStorage.removeItem("adminLoggedIn");
         setLoading(false);
-        
+
         const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
         localStorage.removeItem("redirectAfterLogin");
         navigate(redirectTo);
-      } else {
-        setError("Invalid email or password. Please try again.");
-        setLoading(false);
+        return;
       }
-      
+
+      // No user found anywhere
+      setError("Invalid email or password. Please try again.");
     } catch (err) {
       console.error('Login error:', err);
       setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -91,9 +97,9 @@ const UserLogin = () => {
         <div className="user-login-card">
           <h2>Welcome Back!</h2>
           <p>Login to your account</p>
-          
+
           {error && <div className="error-message">{error}</div>}
-          
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Email Address</label>
@@ -106,7 +112,7 @@ const UserLogin = () => {
                 disabled={loading}
               />
             </div>
-            
+
             <div className="form-group">
               <label>Password</label>
               <input
@@ -118,16 +124,16 @@ const UserLogin = () => {
                 disabled={loading}
               />
             </div>
-            
+
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </button>
           </form>
-          
+
           <p className="signup-link">
             Don't have an account? <Link to="/signup">Sign Up</Link>
           </p>
-          
+
           <p className="admin-note">
             🔐 Admin Access: Use provided credentials
           </p>
