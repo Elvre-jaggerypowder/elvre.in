@@ -97,6 +97,102 @@ const talesData = [
     },
     customer: "Neha Gupta",
     testimonial: "Perfect replacement for sugar in my recipes!"
+  },
+  // ✅ FIXED: Added missing comma above
+  {
+    id: 6,
+    videoUrl: "/videos/tale6.mp4",
+    product: {
+      id: 6,
+      name: "ELVRE Organic Jaggery Powder",
+      price: "₹149",
+      priceValue: 149,
+      image: "/assets/jaggery.png",
+      description: "Chemical Free, Natural Sweetener",
+      variants: [
+        { label: "500g", price: "₹149" },
+        { label: "1kg", price: "₹279" }
+      ],
+      colors: ["Brown", "Golden"]
+    },
+    customer: "New Customer 1",
+    testimonial: "Amazing quality, I love it!"
+  },
+  {
+    id: 7,
+    videoUrl: "/videos/tale7.mp4",
+    product: {
+      id: 7,
+      name: "ELVRE Palm Jaggery",
+      price: "₹199",
+      priceValue: 199,
+      image: "/assets/productpacking.png",
+      description: "Rich in Minerals",
+      variants: [
+        { label: "500g", price: "₹199" },
+        { label: "1kg", price: "₹379" }
+      ],
+      colors: ["Brown", "Dark"]
+    },
+    customer: "Jyoti Singh",
+    testimonial: "Perfect for my daily chai!"
+  },
+  {
+    id: 8,
+    videoUrl: "/videos/tale8.mp4",
+    product: {
+      id: 8,
+      name: "ELVRE Gift Pack",
+      price: "₹299",
+      priceValue: 299,
+      image: "/assets/bowl.png",
+      description: "Special Edition Gift",
+      variants: [
+        { label: "500g x 2", price: "₹299" },
+        { label: "1kg x 2", price: "₹549" }
+      ],
+      colors: ["Assorted"]
+    },
+    customer: "New Customer 3",
+    testimonial: "Made my gifts extra special!"
+  },
+  {
+    id: 9,
+    videoUrl: "/videos/tale9.mp4",
+    product: {
+      id: 9,
+      name: "ELVRE Coconut Jaggery",
+      price: "₹249",
+      priceValue: 249,
+      image: "/assets/coconut-jaggery.png",
+      description: "Low Glycemic Index",
+      variants: [
+        { label: "500g", price: "₹249" },
+        { label: "1kg", price: "₹449" }
+      ],
+      colors: ["Brown"]
+    },
+    customer: "Shreya Chauhan",
+    testimonial: "Great for my diabetic diet!"
+  },
+  {
+    id: 10,
+    videoUrl: "/videos/tale10.mp4",
+    product: {
+      id: 10,
+      name: "ELVRE Date Jaggery",
+      price: "₹299",
+      priceValue: 299,
+      image: "/assets/date-jaggery.png",
+      description: "Natural Dates Sweetener",
+      variants: [
+        { label: "500g", price: "₹299" },
+        { label: "1kg", price: "₹549" }
+      ],
+      colors: ["Dark Brown"]
+    },
+    customer: "New Customer 5",
+    testimonial: "Perfect replacement for sugar!"
   }
 ];
 
@@ -119,9 +215,6 @@ const TalesSection = () => {
       }
     });
   }, []);
-
-  // Play card videos muted when they come into view (optional)
-  // We rely on the scroll play/pause logic in the handleIntersection if needed, but for simplicity we just play all muted.
 
   // Open modal - pauses card videos, plays modal video with sound
   const openModal = (tale) => {
@@ -174,6 +267,8 @@ const TalesSection = () => {
     window.dispatchEvent(new Event("storage"));
     alert(`${product.name} added to cart!`);
     closeModal();
+    // Reload cart count in navbar via event
+    window.dispatchEvent(new Event("storage"));
   };
 
   const handleBuyNow = () => {

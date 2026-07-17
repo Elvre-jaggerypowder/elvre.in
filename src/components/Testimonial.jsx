@@ -11,129 +11,169 @@ const Testimonial = () => {
   useEffect(() => {
     loadFeedbacks();
 
-    // ✅ Real‑time subscription – table name is 'Feedbacks' (capital F)
     const subscription = supabase
-      .channel('feedbacks-channel')
+      .channel('testimonial-feedbacks')
       .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'Feedbacks' }, 
+        { event: 'INSERT', schema: 'public', table: 'Feedbacks' },
         (payload) => {
-          console.log('📢 New feedback added:', payload.new);
-          setFeedbacks(prev => [payload.new, ...prev]);
+          console.log('📬 New testimonial feedback:', payload.new);
+          setFeedbacks(prev => {
+            const updated = [payload.new, ...prev];
+            return updated.slice(0, 10);
+          });
+          setCurrentIndex(0);
         }
       )
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
-      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
-
-  // Auto‑slide effect
-  useEffect(() => {
-    if (feedbacks.length === 0) return;
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % feedbacks.length);
-    }, 4500);
-    return () => clearInterval(intervalRef.current);
-  }, [feedbacks.length]);
 
   const loadFeedbacks = async () => {
     setLoading(true);
     try {
-      // ✅ Fetch from 'Feedbacks' table
+      // Use '*' to avoid column mismatch
       const { data, error } = await supabase
         .from('Feedbacks')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(20);
-      
+        .limit(10);
+
       if (error) {
         console.error('Supabase error:', error);
-        setFeedbacks([]); // No fake data – empty state
+        const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        setFeedbacks(cached);
       } else if (data && data.length > 0) {
         setFeedbacks(data);
-        // Optional cache – not used as primary source
         localStorage.setItem("feedbacks", JSON.stringify(data));
       } else {
-        setFeedbacks([]);
+        const demo = [
+          {
+            id: 1,
+            name: "Deepankar",
+            rating: 5,
+            message: "Best Taste, Best Quality, totally trustable company!!",
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 2,
+            name: "Savnoor Singh",
+            rating: 5,
+            message: "A great idea! It was the need of hour. One step forward to healthy life.",
+            created_at: new Date().toISOString()
+          }
+        ];
+        setFeedbacks(demo);
+        localStorage.setItem("feedbacks", JSON.stringify(demo));
       }
     } catch (err) {
       console.error('Error loading feedbacks:', err);
-      setFeedbacks([]);
+      const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+      setFeedbacks(cached);
     }
     setLoading(false);
   };
 
+  const total = feedbacks.length;
+  const current = feedbacks[currentIndex] || { name: "", message: "", rating: 0 };
+
+  useEffect(() => {
+    if (total === 0) return;
+    startAutoSlide();
+    return () => clearInterval(intervalRef.current);
+  }, [total]);
+
+  const startAutoSlide = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % total);
+    }, 5000);
+  };
+
+  const goNext = () => {
+    clearInterval(intervalRef.current);
+    setCurrentIndex((prev) => (prev + 1) % total);
+    startAutoSlide();
+  };
+
+  const goPrev = () => {
+    clearInterval(intervalRef.current);
+    setCurrentIndex((prev) => (prev - 1 + total) % total);
+    startAutoSlide();
+  };
+
+  const goTo = (index) => {
+    clearInterval(intervalRef.current);
+    setCurrentIndex(index);
+    startAutoSlide();
+  };
+
+  const handleFeedbackClick = () => {
+    const contactSection = document.getElementById("contact");
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   if (loading) {
-    return (
-      <section className="testimonial-section" id="testimonial">
-        <div className="testimonial-container">
-          <div className="testimonial-header">
-            <h2>OUR TESTIMONIALS</h2>
-            <p>WHAT THEY'RE TALKING ABOUT</p>
-          </div>
-          <div className="loading-spinner">Loading testimonials...</div>
-        </div>
-      </section>
-    );
+    return <div className="testimonial-loading">Loading...</div>;
   }
-
-  if (feedbacks.length === 0) {
-    return (
-      <section className="testimonial-section" id="testimonial">
-        <div className="testimonial-container">
-          <div className="testimonial-header">
-            <h2>OUR TESTIMONIALS</h2>
-            <p>WHAT THEY'RE TALKING ABOUT</p>
-          </div>
-          <div className="no-feedback">
-            <p>No feedback available. Be the first to share your experience!</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  const currentFeedback = feedbacks[currentIndex];
 
   return (
-    <section className="testimonial-section" id="testimonial">
-      <div className="testimonial-container">
-        <div className="testimonial-header">
-          <h2>OUR TESTIMONIALS</h2>
-          <p>WHAT THEY'RE TALKING ABOUT</p>
-        </div>
+    <section
+      className="testimonial-hero"
+      id="testimonial"
+      style={{
+        backgroundImage: `url(${process.env.PUBLIC_URL}/assets/testimonial-bg.jpg)`
+      }}
+    >
+      <div className="testimonial-overlay">
+        <div className="testimonial-content">
+          <div className="testimonial-right">
+            <div className="testimonial-card-wrapper">
+              <p className="testimonial-tagline">Pure by Nature, Trusted by You.</p>
+              <h2 className="testimonial-heading">OUR TESTIMONIALS</h2>
+              <p className="testimonial-subheading">What They’re Talking About</p>
 
-        <div className="testimonial-slider">
-          {feedbacks.map((feedback, index) => (
-            <div
-              key={feedback.id || index}
-              className={`testimonial-slide ${index === currentIndex ? "active" : ""}`}
-            >
               <div className="testimonial-card">
-                <div className="quote-icon">"</div>
-                <p className="testimonial-message">{feedback.message}</p>
-                <div className="testimonial-author">
-                  <div className="author-avatar">
-                    {feedback.name ? feedback.name.charAt(0).toUpperCase() : "U"}
+                <div className="quote-icon">❝</div>
+                <p className="testimonial-message">{current.message}</p>
+                <div className="testimonial-user">
+                  <div className="user-avatar">
+                    {current.name?.charAt(0) || "A"}
                   </div>
-                  <div className="author-info">
-                    <strong>{feedback.name || "Anonymous"}</strong>
-                    <span>{feedback.email}</span>
-                    <div className="author-rating">
-                      {"⭐".repeat(Math.min(feedback.rating || 5, 5))}
+                  <div>
+                    <h4>{current.name}</h4>
+                    <div className="stars">
+                      {"★".repeat(current.rating || 5)}{"☆".repeat(5 - (current.rating || 5))}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
 
-        <div className="testimonial-counter">
-          <span>{currentIndex + 1} / {feedbacks.length}</span>
+              <div className="slider-controls">
+                <div className="slider-dots">
+                  {feedbacks.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`dot ${idx === currentIndex ? "active" : ""}`}
+                      onClick={() => goTo(idx)}
+                    />
+                  ))}
+                </div>
+                <p className="counter">
+                  {currentIndex + 1} / {total}
+                </p>
+              </div>
+
+              <button className="testimonial-cta-btn" onClick={handleFeedbackClick}>
+                Share Your Feedback
+              </button>
+              <p className="cta-subtext">YOUR OPINION MATTERS TO US</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>

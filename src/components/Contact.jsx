@@ -5,7 +5,6 @@ import "./Contact.css";
 const Contact = () => {
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
     message: "",
     category: "general",
     rating: 5
@@ -30,11 +29,9 @@ const Contact = () => {
     { value: "suggestion", label: "Suggestion / Idea", icon: "💡" }
   ];
 
-  // Load feedbacks on mount and set up real‑time subscription
   useEffect(() => {
     loadFeedbacks();
 
-    // ✅ Real‑time subscription for new feedbacks
     const subscription = supabase
       .channel('contact-feedbacks')
       .on('postgres_changes', 
@@ -42,6 +39,8 @@ const Contact = () => {
         (payload) => {
           console.log('📬 New feedback received:', payload.new);
           setFeedbacks(prev => [payload.new, ...prev]);
+          const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+          localStorage.setItem("feedbacks", JSON.stringify([payload.new, ...cached]));
         }
       )
       .subscribe();
@@ -49,7 +48,7 @@ const Contact = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []); // Empty dependency so it runs only once
+  }, []);
 
   const loadFeedbacks = async () => {
     setLoading(true);
@@ -62,16 +61,19 @@ const Contact = () => {
       
       if (error) {
         console.error('Supabase error:', error);
-        setFeedbacks([]);
+        const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        setFeedbacks(cached);
       } else if (data && data.length > 0) {
         setFeedbacks(data);
-        localStorage.setItem("feedbacks", JSON.stringify(data)); // cache for offline
+        localStorage.setItem("feedbacks", JSON.stringify(data));
       } else {
-        setFeedbacks([]);
+        const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        setFeedbacks(cached);
       }
     } catch (err) {
       console.error('Error loading feedbacks:', err);
-      setFeedbacks([]);
+      const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+      setFeedbacks(cached);
     }
     setLoading(false);
   };
@@ -93,36 +95,41 @@ const Contact = () => {
       return;
     }
 
+    // ✅ Only columns that exist in the table
     const newFeedback = {
       name: formData.name,
-      email: formData.email || "Not provided",
       message: formData.message,
       category: formData.category,
       rating: formData.rating,
-      date: new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString()
+      // ⚠️ 'email' is NOT in the table, so we exclude it
     };
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('Feedbacks')
         .insert([newFeedback]);
       
       if (error) {
-        console.error('Supabase error:', error);
-        setStatus("❌ Failed to submit. Please try again.");
+        console.error('❌ Supabase insert error:', error);
+        console.error('❌ Error details:', error.message);
+        // Fallback to localStorage
+        const cached = JSON.parse(localStorage.getItem("feedbacks") || "[]");
+        const fake = { id: Date.now(), ...newFeedback };
+        localStorage.setItem("feedbacks", JSON.stringify([fake, ...cached]));
+        setFeedbacks(prev => [fake, ...prev]);
+        setStatus("⚠️ Saved locally (Supabase error: " + error.message + ")");
+        setTimeout(() => setStatus(""), 4000);
         return;
       }
       
-      console.log('✅ Feedback saved to Supabase!');
-      // The real‑time subscription will automatically add the new feedback,
-      // but we can also add it optimistically to avoid waiting.
+      console.log('✅ Feedback saved to Supabase!', data);
       setFeedbacks(prev => [{ id: Date.now(), ...newFeedback }, ...prev]);
-      setFormData({ name: "", email: "", message: "", category: "general", rating: 5 });
+      setFormData({ name: "", message: "", category: "general", rating: 5 });
       setStatus("✅ Thank you! Your feedback has been submitted.");
       setTimeout(() => setStatus(""), 3000);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('❌ Unexpected error:', err);
       setStatus("❌ Something went wrong. Please try again.");
       setTimeout(() => setStatus(""), 3000);
     }
@@ -225,17 +232,7 @@ const Contact = () => {
                 />
               </div>
 
-              {/* Email */}
-              <div className="form-group">
-                <label>Email (optional)</label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={handleChange}
-                />
-              </div>
+              {/* Email is removed – not stored */}
 
               {/* Message */}
               <div className="form-group">
@@ -263,7 +260,7 @@ const Contact = () => {
           </div>
         </div>
 
-        {/* Recent Feedbacks - Only if there are real ones */}
+        {/* Recent Feedbacks */}
         {feedbacks.length > 0 && (
           <div className="recent-feedbacks">
             <h3>Recent Feedback</h3>
@@ -278,7 +275,7 @@ const Contact = () => {
                       </span>
                     </div>
                     <span className="feedback-date">
-                      {fb.date || new Date(fb.created_at).toLocaleDateString()}
+                      {fb.created_at ? new Date(fb.created_at).toLocaleDateString() : ''}
                     </span>
                   </div>
                   <p className="feedback-message">{fb.message}</p>

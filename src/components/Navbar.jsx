@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Link as ScrollLink } from "react-scroll";
-import { 
-  FaShoppingCart, FaBars, FaTimes, FaHome, FaUser, 
+import {
+  FaShoppingCart, FaBars, FaTimes, FaHome, FaUser,
   FaSignOutAlt, FaListAlt, FaStore, FaInfoCircle, FaPhone, FaBlog,
   FaEllipsisV, FaQuoteLeft, FaFileAlt, FaShieldAlt, FaQuestionCircle,
-  FaWhatsapp, FaHeart // ✅ Added FaHeart
+  FaWhatsapp, FaHeart
 } from "react-icons/fa";
 import SearchBar from "./SearchBar";
 import CartDrawer from "./CartDrawer";
@@ -140,12 +140,11 @@ const Navbar = ({ onOpenHelp }) => {
               <FaStore className="nav-icon" /> Products
             </Link>
 
-            {/* ✅ Wishlist Link */}
             <Link to="/wishlist" className="nav-link wishlist-link">
               <FaHeart className="nav-icon" /> Wishlist
             </Link>
 
-            {/* Cart button – opens drawer instead of navigating */}
+            {/* Cart button – opens drawer */}
             <button className="cart-link" onClick={openCartDrawer}>
               <FaShoppingCart />
               {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
@@ -161,6 +160,8 @@ const Navbar = ({ onOpenHelp }) => {
                   <button className="dropdown-help-btn" onClick={() => { openHelp(); closeMenu(); }}>
                     <FaQuestionCircle /> Help
                   </button>
+                  {/* ✅ Our Story is now here */}
+                  <Link to="/our-story" onClick={closeMenu}><FaInfoCircle /> Our Story</Link>
                   {isHomePage ? (
                     <>
                       <ScrollLink to="about" smooth={true} duration={500} onClick={closeMenu}>
@@ -175,7 +176,6 @@ const Navbar = ({ onOpenHelp }) => {
                     </>
                   ) : (
                     <>
-                      <Link to="/our-story" onClick={closeMenu}><FaInfoCircle /> Our Story</Link>
                       <Link to="/blog" onClick={closeMenu}><FaBlog /> Blog</Link>
                     </>
                   )}
@@ -217,10 +217,9 @@ const Navbar = ({ onOpenHelp }) => {
             </div>
           </div>
 
-          {/* MOBILE MENU */}
+          {/* MOBILE MENU – keep Our Story here, it's fine */}
           <div className={`mobile-menu ${isOpen ? "open" : ""}`}>
             <div className="mobile-menu-inner">
-              {/* User info row */}
               <div className="mob-user-row">
                 <div className="mob-avatar">
                   {isLoggedIn ? userName.charAt(0).toUpperCase() : "?"}
@@ -237,8 +236,6 @@ const Navbar = ({ onOpenHelp }) => {
               <Link to="/products" onClick={toggleMenu} className="mob-link">
                 <FaStore /> Products
               </Link>
-
-              {/* ✅ Wishlist Link (Mobile) */}
               <Link to="/wishlist" onClick={toggleMenu} className="mob-link">
                 <FaHeart /> Wishlist
               </Link>
@@ -257,6 +254,11 @@ const Navbar = ({ onOpenHelp }) => {
                 <FaWhatsapp /> WhatsApp
               </a>
 
+              {/* ✅ Our Story is also in mobile menu (kept for mobile users) */}
+              <Link to="/our-story" onClick={toggleMenu} className="mob-link">
+                <FaInfoCircle /> Our Story
+              </Link>
+
               {isHomePage ? (
                 <>
                   <ScrollLink to="about" smooth={true} duration={500} onClick={toggleMenu} className="mob-link">
@@ -271,9 +273,6 @@ const Navbar = ({ onOpenHelp }) => {
                 </>
               ) : (
                 <>
-                  <Link to="/our-story" onClick={toggleMenu} className="mob-link">
-                    <FaInfoCircle /> Our Story
-                  </Link>
                   <Link to="/blog" onClick={toggleMenu} className="mob-link">
                     <FaBlog /> Blog
                   </Link>
