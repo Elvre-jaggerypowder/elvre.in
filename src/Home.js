@@ -29,7 +29,6 @@ const Home = () => {
       <BenefitSection />
       <Testimonial />
       <Contact />
-      <Footer />
       <WhatsApp />
     </>
   );

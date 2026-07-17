@@ -2,7 +2,6 @@ import { supabase } from '../supabaseClient';
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import { sendOrderEmails } from '../services/emailService';
 import { 
   sendOTP, 
@@ -533,7 +532,6 @@ const Checkout = () => {
       <>
         <Navbar />
         <div className="checkout-loading">Loading checkout...</div>
-        <Footer />
       </>
     );
   }
@@ -554,7 +552,6 @@ const Checkout = () => {
             </div>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -789,7 +786,6 @@ const Checkout = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
 import { supabase } from '../supabaseClient';
 import SuccessNotification from "./SuccessNotification";
@@ -548,7 +547,6 @@ const ProductDetails = () => {
           )}
         </div>
       </div>
-      <Footer />
       <WhatsApp />
       
       {showNotification && (

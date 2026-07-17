@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import { supabase } from '../supabaseClient';
 import "./UserSignup.css";
 
@@ -200,7 +199,6 @@ const UserSignup = () => {
           </p>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

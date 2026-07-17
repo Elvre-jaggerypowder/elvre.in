@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import { generateOrderInvoice } from '../services/invoiceService';
 import "./OrdersPage.css";
 
@@ -120,7 +119,6 @@ const OrdersPage = () => {
       <>
         <Navbar />
         <div className="orders-loading">Loading your orders...</div>
-        <Footer />
       </>
     );
   }
@@ -324,7 +322,6 @@ const OrdersPage = () => {
           </div>
         </div>
       )}
-      <Footer />
     </>
   );
 };

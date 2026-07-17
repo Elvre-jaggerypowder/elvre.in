@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import { supabase } from '../supabaseClient';
 import "./UserProfile.css";
 
@@ -161,7 +160,6 @@ const UserProfile = () => {
       <>
         <Navbar />
         <div className="profile-loading">Loading profile...</div>
-        <Footer />
       </>
     );
   }
@@ -365,7 +363,6 @@ const UserProfile = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

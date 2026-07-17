@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useWishlist } from "../context/WishlistContext";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import { FaHeart, FaTrash, FaShoppingCart, FaRegHeart } from "react-icons/fa";
 import "./Wishlist.css";
 
@@ -59,7 +58,6 @@ const Wishlist = () => {
             </button>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -143,7 +141,6 @@ const Wishlist = () => {
           to { transform: translateX(0%); opacity: 1; }
         }
       `}</style>
-      <Footer />
     </>
   );
 };

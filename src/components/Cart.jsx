@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
 import "./Cart.css";
 
@@ -82,7 +81,6 @@ const Cart = () => {
       <>
         <Navbar />
         <div className="cart-loading">Loading cart...</div>
-        <Footer />
         <WhatsApp />
       </>
     );
@@ -101,7 +99,6 @@ const Cart = () => {
             </Link>
           </div>
         </div>
-        <Footer />
         <WhatsApp />
       </>
     );
@@ -179,7 +176,6 @@ const Cart = () => {
           </div>
         </div>
       </div>
-      <Footer />
       <WhatsApp />
     </>
   );

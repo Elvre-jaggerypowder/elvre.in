@@ -1,7 +1,6 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import "./OurStory.css";
 
 const OurStory = () => {
@@ -136,7 +135,6 @@ const OurStory = () => {
 
         </div>
       </div>
-      <Footer />
     </>
   );
 };

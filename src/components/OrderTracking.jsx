@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import { supabase } from '../supabaseClient';
 import { generateOrderInvoice } from '../services/invoiceService';
 import "./OrderTracking.css";
@@ -131,7 +130,6 @@ const OrderTracking = () => {
           <div className="loader"></div>
           <p>Loading order details...</p>
         </div>
-        <Footer />
       </>
     );
   }
@@ -150,7 +148,6 @@ const OrderTracking = () => {
             Back to Home
           </button>
         </div>
-        <Footer />
       </>
     );
   }
@@ -288,7 +285,6 @@ const OrderTracking = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
-import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
 import { supabase } from '../supabaseClient';
 import { useWishlist } from "../context/WishlistContext"; // ✅ Import wishlist hook
@@ -270,7 +269,6 @@ const ProductsPage = () => {
       <>
         <Navbar />
         <div className="products-loading">Loading products...</div>
-        <Footer />
         <WhatsApp />
       </>
     );
@@ -489,7 +487,6 @@ const ProductsPage = () => {
           </div>
         </div>
       </div>
-      <Footer />
       <WhatsApp />
       <style>{`
         .cart-toast {
