@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from '../supabaseClient';
+import AdminAnalytics from "./AdminAnalytics"; // ✅ ADD THIS
 import "./AdminDashboard.css";
 
 const AdminDashboard = () => {
@@ -19,7 +20,7 @@ const AdminDashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   
-  // Contact Info State
+  // ─── CONTACT INFO ───
   const [contactInfo, setContactInfo] = useState({
     phone1: "+91 7060998050",
     phone2: "+91 7906396629",
@@ -34,6 +35,7 @@ const AdminDashboard = () => {
     address: ""
   });
   
+  // ─── COUPON STATE ───
   const [newCoupon, setNewCoupon] = useState({
     code: "",
     discount: "",
@@ -44,16 +46,18 @@ const AdminDashboard = () => {
     usageLimit: 0
   });
   
+  // ─── PRODUCT FORM STATE (including variants) ───
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     priceValue: "",
     stock: "",
     image: "",
-    category: "jaggery"
+    category: "jaggery",
+    variants: []  // array of { label, price, stock }
   });
 
-  // ─── Auth Check ───
+  // ─── AUTH CHECK ───
   useEffect(() => {
     const isAdmin = localStorage.getItem("adminLoggedIn");
     if (!isAdmin) {
@@ -61,7 +65,7 @@ const AdminDashboard = () => {
     }
   }, [navigate]);
 
-  // ─── Load all data ───
+  // ─── LOAD ALL DATA ───
   useEffect(() => {
     loadProducts();
     loadOrders();
@@ -72,7 +76,7 @@ const AdminDashboard = () => {
     loadContactInfo();
   }, []);
 
-  // ─── REAL‑TIME SUBSCRIPTIONS (with safe reload) ───
+  // ─── REAL‑TIME SUBSCRIPTIONS ───
   useEffect(() => {
     const sub = supabase
       .channel('products-channel')
@@ -125,7 +129,7 @@ const AdminDashboard = () => {
     return () => sub.unsubscribe();
   }, []);
 
-  // ─── LOAD PRODUCTS (always set loading false) ───
+  // ─── LOAD PRODUCTS (with variants) ───
   const loadProducts = async () => {
     try {
       const { data, error } = await supabase
@@ -135,7 +139,6 @@ const AdminDashboard = () => {
       
       if (error) {
         console.error('❌ Supabase load products error:', error);
-        // fallback to localStorage
         const saved = localStorage.getItem("elvreProducts");
         if (saved) setProducts(JSON.parse(saved));
         return;
@@ -152,7 +155,8 @@ const AdminDashboard = () => {
           image: p.image,
           category: p.category,
           badge: p.badge,
-          soldCount: p.sold_count || 0
+          soldCount: p.sold_count || 0,
+          variants: p.variants || []
         }));
         setProducts(formatted);
         localStorage.setItem("elvreProducts", JSON.stringify(formatted));
@@ -166,7 +170,6 @@ const AdminDashboard = () => {
       const saved = localStorage.getItem("elvreProducts");
       if (saved) setProducts(JSON.parse(saved));
     } finally {
-      // ✅ always set loading false after this function
       setLoading(false);
     }
   };
@@ -241,7 +244,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ─── LOAD FEEDBACKS (table name: "Feedbacks") ───
+  // ─── LOAD FEEDBACKS ───
   const loadFeedbacks = async () => {
     try {
       const { data, error } = await supabase
@@ -301,7 +304,6 @@ const AdminDashboard = () => {
         }));
         setAllReviews(formatted);
       } else {
-        // build from localStorage
         const reviewsList = [];
         const savedProducts = JSON.parse(localStorage.getItem("elvreProducts") || "[]");
         savedProducts.forEach(product => {
@@ -325,7 +327,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ─── LOAD CONTACT INFO ───
+  // ─── CONTACT INFO ───
   const loadContactInfo = () => {
     const saved = localStorage.getItem("contactInfo");
     if (saved) {
@@ -401,7 +403,7 @@ const AdminDashboard = () => {
     setTimeout(() => setMessage(""), 3000);
   };
 
-  // ─── PRODUCT CRUD (SYNC WITH SUPABASE) ───
+  // ─── PRODUCT CRUD (with variants) ───
   const handleAddProduct = async () => {
     if (!formData.name || !formData.priceValue || !formData.stock) {
       setMessage("Please fill all required fields");
@@ -417,6 +419,7 @@ const AdminDashboard = () => {
       category: formData.category,
       badge: "New",
       sold_count: 0,
+      variants: formData.variants.filter(v => v.label && v.price),
       created_at: new Date().toISOString()
     };
 
@@ -436,11 +439,10 @@ const AdminDashboard = () => {
       setMessage("Error saving product. Please try again.");
     }
 
-    // Update local state
     const formattedProduct = { ...newProduct, price: `₹${newProduct.price}` };
     const updatedProducts = [...products, formattedProduct];
     saveProducts(updatedProducts);
-    setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery" });
+    setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery", variants: [] });
     setShowAddForm(false);
     setTimeout(() => setMessage(""), 3000);
   };
@@ -453,7 +455,8 @@ const AdminDashboard = () => {
       priceValue: product.priceValue,
       stock: product.stock,
       image: product.image,
-      category: product.category || "jaggery"
+      category: product.category || "jaggery",
+      variants: product.variants ? [...product.variants] : []
     });
     setShowAddForm(true);
   };
@@ -466,7 +469,8 @@ const AdminDashboard = () => {
       price: parseFloat(formData.priceValue),
       stock: parseInt(formData.stock),
       image: formData.image || editingProduct.image,
-      category: formData.category
+      category: formData.category,
+      variants: formData.variants.filter(v => v.label && v.price)
     };
 
     try {
@@ -479,7 +483,8 @@ const AdminDashboard = () => {
           stock: updatedProduct.stock,
           image: updatedProduct.image,
           category: updatedProduct.category,
-          badge: updatedProduct.badge
+          badge: updatedProduct.badge,
+          variants: updatedProduct.variants
         })
         .eq('id', editingProduct.id);
       if (error) {
@@ -500,7 +505,7 @@ const AdminDashboard = () => {
     saveProducts(updatedProducts);
     setEditingProduct(null);
     setShowAddForm(false);
-    setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery" });
+    setFormData({ name: "", description: "", priceValue: "", stock: "", image: "", category: "jaggery", variants: [] });
     setTimeout(() => setMessage(""), 3000);
   };
 
@@ -527,6 +532,25 @@ const AdminDashboard = () => {
     const updatedProducts = products.filter(p => p.id !== id);
     saveProducts(updatedProducts);
     setTimeout(() => setMessage(""), 3000);
+  };
+
+  // ─── VARIANT HELPERS ───
+  const addVariantRow = () => {
+    setFormData({
+      ...formData,
+      variants: [...formData.variants, { label: "", price: "", stock: "" }]
+    });
+  };
+
+  const removeVariantRow = (index) => {
+    const newVariants = formData.variants.filter((_, i) => i !== index);
+    setFormData({ ...formData, variants: newVariants });
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const newVariants = [...formData.variants];
+    newVariants[index][field] = value;
+    setFormData({ ...formData, variants: newVariants });
   };
 
   // ─── COUPON CRUD ───
@@ -689,7 +713,7 @@ const AdminDashboard = () => {
   const recentOrders = orders.slice(0, 5);
   const topProducts = [...products].sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0)).slice(0, 5);
 
-  // ─── Render ───
+  // ─── RENDER ───
   if (loading) {
     return <div className="admin-loading">Loading Dashboard...</div>;
   }
@@ -729,6 +753,8 @@ const AdminDashboard = () => {
         <button className={activeTab === "customers" ? "tab-active" : "tab"} onClick={() => setActiveTab("customers")}>👥 Customers</button>
         <button className={activeTab === "feedbacks" ? "tab-active" : "tab"} onClick={() => setActiveTab("feedbacks")}>💬 Feedbacks</button>
         <button className={activeTab === "contact" ? "tab-active" : "tab"} onClick={() => setActiveTab("contact")}>📞 Contact Settings</button>
+        {/* ✅ ANALYTICS TAB ADDED */}
+        <button className={activeTab === "analytics" ? "tab-active" : "tab"} onClick={() => setActiveTab("analytics")}>📊 Analytics</button>
       </div>
 
       <div className="admin-container">
@@ -801,6 +827,41 @@ const AdminDashboard = () => {
                   <div className="admin-field"><label>Stock *</label><input type="number" value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} placeholder="Stock" /></div>
                   <div className="admin-field"><label>Category</label><select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}><option value="jaggery">Jaggery</option><option value="organic">Organic</option><option value="special">Special</option></select></div>
                   <div className="admin-field"><label>Image Path</label><input type="text" value={formData.image} onChange={(e) => setFormData({...formData, image: e.target.value})} placeholder="/assets/image.png" /></div>
+                  
+                  {/* ─── VARIANTS SECTION ─── */}
+                  <div className="admin-field full-width">
+                    <label>Product Variants (Weight/Size)</label>
+                    {formData.variants && formData.variants.map((variant, index) => (
+                      <div key={index} className="variant-row" style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          placeholder="Label (e.g. 500g)"
+                          value={variant.label}
+                          onChange={(e) => handleVariantChange(index, 'label', e.target.value)}
+                          style={{ flex: 2, padding: '6px 10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Price (₹)"
+                          value={variant.price}
+                          onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                          style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Stock"
+                          value={variant.stock}
+                          onChange={(e) => handleVariantChange(index, 'stock', e.target.value)}
+                          style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        />
+                        <button type="button" onClick={() => removeVariantRow(index)} style={{ background: 'transparent', border: 'none', color: 'red', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={addVariantRow} className="add-variant-btn" style={{ marginTop: '8px', padding: '4px 12px', background: '#f1a40f', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      + Add Variant
+                    </button>
+                  </div>
+                  {/* ─── END VARIANTS ─── */}
                 </div>
                 <div className="admin-form-buttons">
                   <button onClick={editingProduct ? handleUpdateProduct : handleAddProduct} className="admin-save-btn">{editingProduct ? "Update" : "Save"}</button>
@@ -812,7 +873,7 @@ const AdminDashboard = () => {
               <h3>Product Inventory ({products.length} items)</h3>
               <div className="table-responsive">
                 <table className="admin-table">
-                  <thead><tr><th>Image</th><th>Product</th><th>Price</th><th>Stock</th><th>Sold</th><th>Revenue</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Image</th><th>Product</th><th>Price</th><th>Stock</th><th>Sold</th><th>Revenue</th><th>Variants</th><th>Actions</th></tr></thead>
                   <tbody>
                     {products.map(product => (
                       <tr key={product.id}>
@@ -822,6 +883,7 @@ const AdminDashboard = () => {
                         <td><span className={product.stock > 0 ? "stock-badge in-stock" : "stock-badge out-of-stock"}>{product.stock} units</span></td>
                         <td>{product.soldCount || 0}</td>
                         <td>₹{((product.priceValue || 0) * (product.soldCount || 0)).toLocaleString()}</td>
+                        <td>{product.variants && product.variants.length > 0 ? product.variants.map(v => v.label).join(', ') : 'None'}</td>
                         <td><button onClick={() => handleEditProduct(product)} className="admin-edit-btn">Edit</button><button onClick={() => handleDeleteProduct(product.id)} className="admin-delete-btn">Delete</button></td>
                       </tr>
                     ))}
@@ -990,9 +1052,7 @@ const AdminDashboard = () => {
             <h3>Customer Feedbacks ({feedbacks.length})</h3>
             <div className="table-responsive">
               <table className="admin-table">
-                <thead>
-                  <tr><th>#</th><th>Name</th><th>Email</th><th>Message</th><th>Date</th></tr>
-                </thead>
+                <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Message</th><th>Date</th></tr></thead>
                 <tbody>
                   {feedbacks.length === 0 ? (
                     <tr><td colSpan="5" className="no-data">No feedbacks yet</td></tr>
@@ -1097,12 +1157,15 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
-            
             <div className="contact-info-note">
               <p>💡 Changes will reflect immediately on the website's contact section.</p>
             </div>
           </div>
         )}
+
+        {/* ✅ ANALYTICS CONTENT */}
+        {activeTab === "analytics" && <AdminAnalytics />}
+
       </div>
 
       {showOrderModal && selectedOrder && (

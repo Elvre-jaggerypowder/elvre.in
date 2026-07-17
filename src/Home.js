@@ -1,7 +1,6 @@
 import React from "react";
 import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
-import VideoCarousel from "./components/VideoCarousel";  // MUST be imported
 import StatsCounter from "./components/StatsCounter";
 import AboutSection from "./components/AboutSection";
 import ProductCarousel from "./components/ProductCarousel";
@@ -12,13 +11,16 @@ import Testimonial from "./components/Testimonial";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
 import WhatsApp from "./components/WhatsApp";
+// ✅ New component imported
+import TalesSection from "./components/TalesSection";
 
 const Home = () => {
   return (
     <>
       <Navbar />
       <HeroSection />
-      <VideoCarousel />      {/* MUST be here between Hero and Stats */}
+      {/* ✅ Replaced VideoCarousel with TalesSection */}
+      <TalesSection />
       <StatsCounter />
       <AboutSection />
       <ProductCarousel />

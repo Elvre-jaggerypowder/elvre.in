@@ -386,7 +386,7 @@ const Checkout = () => {
   };
 
   // ============================================================
-  // FIXED placeOrder – with robust Supabase insertion + fallback
+  // FIXED placeOrder – includes variant in products
   // ============================================================
   const placeOrder = async (e) => {
     e.preventDefault();
@@ -444,7 +444,7 @@ const Checkout = () => {
     localStorage.setItem("elvreProducts", JSON.stringify(updatedProducts));
     window.dispatchEvent(new Event("productsUpdated"));
     
-    // Build the order object
+    // Build the order object – include variant
     const newOrder = {
       id: "ORD" + Date.now(),
       customer: formData.fullName,
@@ -454,6 +454,7 @@ const Checkout = () => {
       products: cart.map(item => ({
         id: item.id,
         name: item.name,
+        variant: item.variant || null, // ✅ store variant
         price: item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0,
         quantity: item.quantity || 1,
         image: item.image
@@ -471,7 +472,7 @@ const Checkout = () => {
     };
 
     // ------------------------------------------------------------
-    // 🔥 SAVE ORDER TO SUPABASE (with full logging)
+    // 🔥 SAVE ORDER TO SUPABASE
     // ------------------------------------------------------------
     console.log('💾 Attempting to save order to Supabase:', newOrder);
     let supabaseSuccess = false;
@@ -493,7 +494,7 @@ const Checkout = () => {
       alert('Order placed, but could not save to cloud. We\'ll keep your order locally.');
     }
 
-    // Always save to localStorage as backup (even if Supabase succeeded)
+    // Always save to localStorage as backup
     const existingOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
     existingOrders.unshift(newOrder);
     localStorage.setItem("elvreOrders", JSON.stringify(existingOrders));
@@ -503,7 +504,7 @@ const Checkout = () => {
     setCart([]);
     window.dispatchEvent(new Event("storage"));
 
-    // Send order confirmation emails (only once)
+    // Send order confirmation emails
     if (!emailSent) {
       try {
         console.log('📧 Sending order emails for order:', newOrder.id);
@@ -745,11 +746,13 @@ const Checkout = () => {
                 {cart.map((item, idx) => {
                   const price = item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0;
                   const qty = item.quantity || 1;
+                  // ✅ Display variant if present
+                  const displayName = item.variant ? `${item.name} (${item.variant})` : item.name;
                   return (
                     <div key={idx} className="summary-product">
                       <img src={item.image || "/assets/jaggery.png"} alt={item.name} />
                       <div className="summary-product-info">
-                        <h4>{item.name}</h4>
+                        <h4>{displayName}</h4>
                         <p>Qty: {qty}</p>
                       </div>
                       <div className="summary-product-price">₹{price * qty}</div>

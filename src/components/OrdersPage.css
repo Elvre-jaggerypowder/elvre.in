@@ -598,3 +598,33 @@
     width: 95%;
   }
 }
+/* ===== DOWNLOAD INVOICE BUTTON ===== */
+.download-invoice-btn {
+  padding: 8px 16px;
+  background: #8B5E3C;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 12px;
+  transition: all 0.3s;
+}
+
+.download-invoice-btn:hover:not(:disabled) {
+  background: #6d4a2e;
+  transform: translateY(-2px);
+}
+
+.download-invoice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .download-invoice-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+  }
+}

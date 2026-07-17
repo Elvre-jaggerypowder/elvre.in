@@ -6,7 +6,7 @@ const BackToTop = () => {
 
   useEffect(() => {
     const toggleVisibility = () => {
-      if (window.scrollY > 300) {
+      if (window.pageYOffset > 300) {
         setIsVisible(true);
       } else {
         setIsVisible(false);
@@ -18,16 +18,13 @@ const BackToTop = () => {
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <>
       {isVisible && (
-        <button onClick={scrollToTop} className="back-to-top" aria-label="Back to top">
+        <button className="back-to-top" onClick={scrollToTop} aria-label="Back to top">
           ↑
         </button>
       )}

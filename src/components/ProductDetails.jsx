@@ -20,20 +20,15 @@ const ProductDetails = () => {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
+  
+  // ─── VARIANT STATE ───
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
-  // Helper: product images (fallback)
-  const productImages = [
-    product?.image || "/assets/jaggery.png",
-    "/assets/productpacking.png",
-    "/assets/bowl.png"
-  ];
-
-  // ─── LOAD PRODUCT & REVIEWS, SET UP REAL-TIME ───
+  // ─── LOAD PRODUCT & REVIEWS ───
   useEffect(() => {
     loadProduct();
     loadReviews();
 
-    // Real‑time subscription for product updates (stock, price, etc.)
     const productSub = supabase
       .channel('product-details')
       .on('postgres_changes', 
@@ -45,7 +40,6 @@ const ProductDetails = () => {
       )
       .subscribe();
 
-    // Listen for manual "productsUpdated" event (from admin panel)
     const handleProductsUpdated = () => loadProduct();
     window.addEventListener("productsUpdated", handleProductsUpdated);
 
@@ -59,7 +53,6 @@ const ProductDetails = () => {
   const loadProduct = async () => {
     setLoading(true);
     try {
-      // 1️⃣ Try Supabase first
       const { data: supabaseProduct, error } = await supabase
         .from('products')
         .select('*')
@@ -78,6 +71,7 @@ const ProductDetails = () => {
           category: supabaseProduct.category,
           badge: supabaseProduct.badge,
           soldCount: supabaseProduct.sold_count || 0,
+          variants: supabaseProduct.variants || [],  // ✅ load variants
           enhancedInfo: {
             brand: "ELVRE Enterprises",
             origin: "Made in India",
@@ -110,6 +104,12 @@ const ProductDetails = () => {
           ]
         };
         setProduct(foundProduct);
+        // Set default variant (first one if exists)
+        if (foundProduct.variants && foundProduct.variants.length > 0) {
+          setSelectedVariant(foundProduct.variants[0]);
+        } else {
+          setSelectedVariant(null);
+        }
         // Update localStorage cache
         const savedProducts = localStorage.getItem("elvreProducts");
         if (savedProducts) {
@@ -118,12 +118,17 @@ const ProductDetails = () => {
           localStorage.setItem("elvreProducts", JSON.stringify(updated));
         }
       } else {
-        // 2️⃣ Fallback to localStorage
+        // fallback to localStorage
         const savedProducts = localStorage.getItem("elvreProducts");
         if (savedProducts) {
           const products = JSON.parse(savedProducts);
           const foundProduct = products.find(p => p.id === parseInt(id));
-          if (foundProduct) setProduct(foundProduct);
+          if (foundProduct) {
+            setProduct(foundProduct);
+            if (foundProduct.variants && foundProduct.variants.length > 0) {
+              setSelectedVariant(foundProduct.variants[0]);
+            }
+          }
         }
       }
     } catch (err) {
@@ -135,7 +140,6 @@ const ProductDetails = () => {
   // ─── LOAD REVIEWS ───
   const loadReviews = async () => {
     try {
-      // 1️⃣ Try Supabase
       const { data: supabaseReviews, error } = await supabase
         .from('reviews')
         .select('*')
@@ -144,7 +148,6 @@ const ProductDetails = () => {
       
       if (error) {
         console.error('⚠️ Supabase load reviews error:', error);
-        // fallback to localStorage
         const savedReviews = localStorage.getItem(`reviews_${id}`);
         if (savedReviews) setReviews(JSON.parse(savedReviews));
         return;
@@ -154,14 +157,12 @@ const ProductDetails = () => {
         setReviews(supabaseReviews);
         localStorage.setItem(`reviews_${id}`, JSON.stringify(supabaseReviews));
       } else {
-        // 2️⃣ Fallback to localStorage if Supabase has none
         const savedReviews = localStorage.getItem(`reviews_${id}`);
         if (savedReviews) setReviews(JSON.parse(savedReviews));
         else setReviews([]);
       }
     } catch (err) {
       console.error('❌ loadReviews error:', err);
-      // last resort: localStorage
       const savedReviews = localStorage.getItem(`reviews_${id}`);
       if (savedReviews) setReviews(JSON.parse(savedReviews));
     }
@@ -192,14 +193,11 @@ const ProductDetails = () => {
     };
 
     try {
-      // ✅ INSERT INTO SUPABASE
       const { error } = await supabase
         .from('reviews')
         .insert([review]);
-
       if (error) {
         console.error('❌ Supabase insert review error:', error);
-        // Still update UI so user doesn't lose their review
       } else {
         console.log('✅ Review saved to Supabase');
       }
@@ -207,7 +205,6 @@ const ProductDetails = () => {
       console.error('❌ Unexpected review save error:', err);
     }
 
-    // Always update local state and cache
     const updatedReviews = [review, ...reviews];
     setReviews(updatedReviews);
     localStorage.setItem(`reviews_${id}`, JSON.stringify(updatedReviews));
@@ -218,15 +215,50 @@ const ProductDetails = () => {
     setTimeout(() => setShowNotification(false), 3000);
   };
 
-  // ─── CART ACTIONS ───
+  // ─── CART ACTIONS (with variant) ───
+  const getVariantPrice = () => {
+    if (selectedVariant && selectedVariant.price) {
+      return parseFloat(selectedVariant.price);
+    }
+    return product.priceValue;
+  };
+
+  const getVariantStock = () => {
+    if (selectedVariant && selectedVariant.stock !== undefined) {
+      return parseInt(selectedVariant.stock);
+    }
+    return product.stock;
+  };
+
+  const getVariantLabel = () => {
+    return selectedVariant ? selectedVariant.label : null;
+  };
+
   const addToCart = () => {
+    const price = getVariantPrice();
+    const stock = getVariantStock();
+    const variantLabel = getVariantLabel();
+    
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      variant: variantLabel,
+      price: price,
+      priceDisplay: `₹${price}`,
+      quantity: quantity,
+      image: product.image,
+      stock: stock
+    };
+
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const existingItem = cart.find(item => item.id === product.id);
+    const existingItem = cart.find(item => 
+      item.id === product.id && item.variant === variantLabel
+    );
     
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {
-      cart.push({ ...product, quantity });
+      cart.push(cartItem);
     }
     
     localStorage.setItem("cart", JSON.stringify(cart));
@@ -234,7 +266,7 @@ const ProductDetails = () => {
     
     const toast = document.createElement("div");
     toast.className = "cart-toast";
-    toast.innerHTML = "✓ Added to cart!";
+    toast.innerHTML = `✓ ${product.name}${variantLabel ? ' ('+variantLabel+')' : ''} added to cart!`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
   };
@@ -259,13 +291,15 @@ const ProductDetails = () => {
   if (loading) return <div className="loading">Loading...</div>;
   if (!product) return <div className="not-found">Product not found</div>;
 
+  const currentStock = getVariantStock();
+  const currentPrice = getVariantPrice();
+
   // ─── RENDER ───
   return (
     <>
       <Navbar />
       <div className="product-detail-page">
         <div className="product-detail-container">
-          {/* Back Button */}
           <div className="back-btn-wrapper">
             <button className="back-btn" onClick={() => navigate(-1)}>
               <span className="back-icon">←</span> Back
@@ -282,18 +316,12 @@ const ProductDetails = () => {
             {/* Image Gallery */}
             <div className="product-gallery">
               <div className="main-image">
-                <img src={productImages[selectedImage]} alt={product.name} />
+                <img src={product.image} alt={product.name} />
               </div>
               <div className="thumbnail-list">
-                {productImages.map((img, idx) => (
-                  <img
-                    key={idx}
-                    src={img}
-                    alt={`View ${idx + 1}`}
-                    className={`thumbnail ${selectedImage === idx ? "active" : ""}`}
-                    onClick={() => setSelectedImage(idx)}
-                  />
-                ))}
+                <img src={product.image} alt="View 1" className="thumbnail active" onClick={() => setSelectedImage(0)} />
+                <img src="/assets/productpacking.png" alt="View 2" className="thumbnail" onClick={() => setSelectedImage(1)} />
+                <img src="/assets/bowl.png" alt="View 3" className="thumbnail" onClick={() => setSelectedImage(2)} />
               </div>
             </div>
 
@@ -311,10 +339,28 @@ const ProductDetails = () => {
               </div>
 
               <div className="price-section">
-                <span className="current-price">{product.price}</span>
+                <span className="current-price">₹{currentPrice}</span>
                 <span className="original-price">₹{Math.round(product.priceValue * 1.2)}</span>
                 <span className="discount-badge">Save {Math.round(product.priceValue * 0.2)}₹</span>
               </div>
+
+              {/* ─── VARIANTS SELECTOR ─── */}
+              {product.variants && product.variants.length > 0 && (
+                <div className="variant-selector">
+                  <label>Select Weight</label>
+                  <div className="variant-options">
+                    {product.variants.map((variant, idx) => (
+                      <button
+                        key={idx}
+                        className={`variant-btn ${selectedVariant && selectedVariant.label === variant.label ? 'active' : ''}`}
+                        onClick={() => setSelectedVariant(variant)}
+                      >
+                        {variant.label} - ₹{variant.price}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="certifications">
                 <span className="cert-badge">✓ FSSAI Certified</span>
@@ -323,23 +369,23 @@ const ProductDetails = () => {
               </div>
 
               <div className="stock-status">
-                {product.stock > 0 ? (
-                  <span className="in-stock">✓ In Stock ({product.stock} units available)</span>
+                {currentStock > 0 ? (
+                  <span className="in-stock">✓ In Stock ({currentStock} units available)</span>
                 ) : (
                   <span className="out-of-stock">✗ Out of Stock</span>
                 )}
               </div>
 
-              {product.stock > 0 && (
+              {currentStock > 0 && (
                 <>
                   <div className="quantity-selector">
                     <label>Quantity:</label>
                     <div className="quantity-controls">
                       <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
                       <span>{quantity}</span>
-                      <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}>+</button>
+                      <button onClick={() => setQuantity(Math.min(currentStock, quantity + 1))}>+</button>
                     </div>
-                    <span className="stock-info">{product.stock} units available</span>
+                    <span className="stock-info">{currentStock} units available</span>
                   </div>
 
                   <div className="action-buttons">
@@ -397,7 +443,6 @@ const ProductDetails = () => {
                 </div>
               </div>
             )}
-
             {activeTab === "ingredients" && (
               <div className="tab-pane">
                 <ul className="ingredients-list">
@@ -405,7 +450,6 @@ const ProductDetails = () => {
                 </ul>
               </div>
             )}
-
             {activeTab === "nutrition" && (
               <div className="tab-pane">
                 <table className="nutrition-table">
@@ -422,7 +466,6 @@ const ProductDetails = () => {
                 </table>
               </div>
             )}
-
             {activeTab === "benefits" && (
               <div className="tab-pane">
                 <div className="benefits-grid">
@@ -435,7 +478,6 @@ const ProductDetails = () => {
                 </div>
               </div>
             )}
-
             {activeTab === "usage" && (
               <div className="tab-pane">
                 <ul className="usage-list">
@@ -448,7 +490,6 @@ const ProductDetails = () => {
                 </ul>
               </div>
             )}
-
             {activeTab === "reviews" && (
               <div className="tab-pane">
                 <div className="reviews-summary">
@@ -457,7 +498,6 @@ const ProductDetails = () => {
                     <div className="stars">{"★".repeat(Math.floor(getAverageRating()))}</div>
                     <div className="total-reviews">{reviews.length} reviews</div>
                   </div>
-                  
                   <div className="write-review">
                     <h3>Write a Review</h3>
                     <form onSubmit={submitReview}>
@@ -474,7 +514,6 @@ const ProductDetails = () => {
                     </form>
                   </div>
                 </div>
-
                 <div className="reviews-list">
                   {reviews.map(review => (
                     <div key={review.id} className="review-item">
@@ -517,6 +556,31 @@ const ProductDetails = () => {
           message={notificationMessage} 
           onClose={() => setShowNotification(false)}
         />
+      )}
+
+      {/* ─── STICKY ADD TO CART BAR ─── */}
+      {currentStock > 0 && (
+        <div className="sticky-add-to-cart">
+          <div className="sticky-container">
+            <div className="sticky-product-info">
+              <img src={product.image} alt={product.name} className="sticky-product-image" />
+              <div>
+                <h4>{product.name}{selectedVariant ? ` (${selectedVariant.label})` : ''}</h4>
+                <p className="sticky-price">₹{currentPrice}</p>
+              </div>
+            </div>
+            <div className="sticky-actions">
+              <div className="sticky-quantity">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                <span>{quantity}</span>
+                <button onClick={() => setQuantity(Math.min(currentStock, quantity + 1))}>+</button>
+              </div>
+              <button className="sticky-add-btn" onClick={addToCart}>
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       
       <style>{`

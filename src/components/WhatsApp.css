@@ -3,7 +3,7 @@
    ============================================ */
 .whatsapp-button {
   position: fixed;
-  bottom: 56px;
+  bottom: 120px;           /* ✅ 40px higher than before (80px → 120px) */
   right: 20px;
   width: 60px;
   height: 60px;
@@ -30,7 +30,7 @@
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .whatsapp-button {
-    bottom: 44px;
+    bottom: 116px;          /* ✅ 40px higher (76px → 116px) */
     right: 15px;
     width: 50px;
     height: 50px;
@@ -44,7 +44,7 @@
 
 @media (max-width: 480px) {
   .whatsapp-button {
-    bottom: 36px;
+    bottom: 110px;          /* ✅ 40px higher (70px → 110px) */
     right: 12px;
     width: 45px;
     height: 45px;
@@ -63,10 +63,9 @@
   pointer-events: none !important;
 }
 
-/* Ensure proper z-index on mobile to avoid overlap */
+/* Ensure proper z-index on mobile */
 @media (max-width: 968px) {
   .whatsapp-button {
     z-index: 998 !important;
-    bottom: 40px !important;
   }
 }

@@ -119,11 +119,15 @@ const Cart = () => {
               {cartItems.map((item) => {
                 const itemPrice = item.priceValue || parseFloat(item.price?.replace('₹', '')) || 0;
                 const itemTotal = itemPrice * (item.quantity || 1);
+
+                // ✅ Display variant label if present
+                const displayName = item.variant ? `${item.name} (${item.variant})` : item.name;
+
                 return (
                   <div key={item.id} className="cart-item">
                     <img src={item.image || "/assets/jaggery.png"} alt={item.name} className="cart-item-image" />
                     <div className="cart-item-details">
-                      <h3>{item.name}</h3>
+                      <h3>{displayName}</h3>
                       <p className="cart-item-price">₹{itemPrice}</p>
                       <p className="cart-item-stock">In Stock</p>
                       <button onClick={() => removeFromCart(item.id)} className="cart-remove-btn">

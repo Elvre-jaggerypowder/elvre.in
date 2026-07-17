@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { supabase } from '../supabaseClient';
+import { generateOrderInvoice } from '../services/invoiceService';
 import "./OrderTracking.css";
 
 const OrderTracking = () => {
@@ -10,12 +11,12 @@ const OrderTracking = () => {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   // ─── Load order and set up real‑time subscription ───
   useEffect(() => {
     loadOrder();
 
-    // ✅ Real‑time subscription for this specific order
     const subscription = supabase
       .channel(`order-${orderId}`)
       .on(
@@ -44,7 +45,6 @@ const OrderTracking = () => {
     console.log('🔍 Searching for order ID:', orderId);
 
     try {
-      // ✅ 1. Try Supabase
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -78,7 +78,7 @@ const OrderTracking = () => {
       console.error('⚠️ Supabase fetch error:', err);
     }
 
-    // ✅ 2. Fallback to localStorage
+    // Fallback to localStorage
     const localOrders = JSON.parse(localStorage.getItem("elvreOrders") || "[]");
     const foundOrder = localOrders.find(o => o.id === orderId);
 
@@ -90,6 +90,17 @@ const OrderTracking = () => {
       setOrder(null);
     }
     setLoading(false);
+  };
+
+  // ─── HANDLE INVOICE DOWNLOAD ───
+  const handleDownloadInvoice = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    const result = await generateOrderInvoice(order);
+    if (!result.success) {
+      alert('Failed to generate invoice. Please try again.');
+    }
+    setDownloading(false);
   };
 
   // ─── STATUS STEPS ───
@@ -194,11 +205,13 @@ const OrderTracking = () => {
                   const productQty = product.quantity || 1;
                   const productTotal = productPrice * productQty;
                   
+                  const displayName = product.variant ? `${product.name} (${product.variant})` : product.name;
+                  
                   return (
                     <div key={idx} className="order-product">
                       <img src={product.image || "/assets/jaggery.png"} alt={product.name} className="product-image" />
                       <div className="product-info">
-                        <h4>{product.name}</h4>
+                        <h4>{displayName}</h4>
                         <div className="product-meta">
                           <span className="product-price">₹{productPrice}</span>
                           <span className="product-quantity">Quantity: {productQty}</span>
@@ -233,6 +246,15 @@ const OrderTracking = () => {
                 <span>₹{order.total || 0}</span>
               </div>
             </div>
+
+            {/* ✅ DOWNLOAD INVOICE BUTTON */}
+            <button 
+              className="download-invoice-btn" 
+              onClick={handleDownloadInvoice}
+              disabled={downloading}
+            >
+              {downloading ? 'Generating...' : '📄 Download Invoice'}
+            </button>
           </div>
           
           <div className="shipping-details-card">

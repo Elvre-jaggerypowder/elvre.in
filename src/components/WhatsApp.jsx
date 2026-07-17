@@ -1,5 +1,5 @@
 // ============================================
-// FILE: src/components/WhatsApp.jsx (FIX - REPLACE ENTIRE FILE)
+// FILE: src/components/WhatsApp.jsx
 // ============================================
 import React from "react";
 import "./WhatsApp.css";
@@ -7,7 +7,7 @@ import "./WhatsApp.css";
 function WhatsApp() {
   return (
     <a
-      href="https://wa.me/917906396629"  // Fixed: Added country code 91
+      href="https://wa.me/917906396629"   // ✅ Fixed: Added country code 91
       target="_blank"
       rel="noopener noreferrer"
       className="whatsapp-button"

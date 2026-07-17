@@ -1,15 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./TalesSection.css";
 
-// ============================================================
-// 📽️ VIDEO DATA – Copied from your VideoCarousel.jsx
-// ============================================================
 const talesData = [
   {
     id: 1,
-    videoUrl: "/videos/WhatsApp%20Video%202026-05-13%20at%201.31.18%20AM.mp4",
-    thumbnail: "/assets/tale1-thumb.jpg", // replace with actual thumbnail
+    videoUrl: "/videos/tale1.mp4",
     product: {
       id: 1,
       name: "ELVRE Organic Jaggery Powder",
@@ -21,16 +17,14 @@ const talesData = [
         { label: "500g", price: "₹149" },
         { label: "1kg", price: "₹279" }
       ],
-      colors: ["Brown", "Golden"],
-      rating: 4.8
+      colors: ["Brown", "Golden"]
     },
     customer: "Priya Sharma",
     testimonial: "I've been using ELVRE jaggery for months, it's the best!"
   },
   {
     id: 2,
-    videoUrl: "/videos/WhatsApp%20Video%202026-05-13%20at%201.31.46%20AM.mp4",
-    thumbnail: "/assets/tale2-thumb.jpg",
+    videoUrl: "/videos/tale2.mp4",
     product: {
       id: 2,
       name: "ELVRE Palm Jaggery",
@@ -42,16 +36,14 @@ const talesData = [
         { label: "500g", price: "₹199" },
         { label: "1kg", price: "₹379" }
       ],
-      colors: ["Brown", "Dark"],
-      rating: 4.6
+      colors: ["Brown", "Dark"]
     },
     customer: "Rahul Kumar",
     testimonial: "Perfect for my daily chai, great taste!"
   },
   {
     id: 3,
-    videoUrl: "/videos/WhatsApp%20Video%202026-05-13%20at%201.34.12%20AM.mp4",
-    thumbnail: "/assets/tale3-thumb.jpg",
+    videoUrl: "/videos/tale3.mp4",
     product: {
       id: 3,
       name: "ELVRE Gift Pack",
@@ -63,79 +55,111 @@ const talesData = [
         { label: "500g x 2", price: "₹299" },
         { label: "1kg x 2", price: "₹549" }
       ],
-      colors: ["Assorted"],
-      rating: 4.9
+      colors: ["Assorted"]
     },
     customer: "Ananya Singh",
     testimonial: "Made my Diwali gifts extra special!"
   },
   {
     id: 4,
-    videoUrl: "/videos/WhatsApp%20Video%202026-05-13%20at%201.36.30%20AM.mp4",
-    thumbnail: "/assets/tale4-thumb.jpg",
+    videoUrl: "/videos/tale4.mp4",
     product: {
       id: 4,
       name: "ELVRE Coconut Jaggery",
       price: "₹249",
       priceValue: 249,
-      image: "/assets/jaggery.png",
-      description: "Low Glycemic Index, Diabetic Friendly",
+      image: "/assets/coconut-jaggery.png",
+      description: "Low Glycemic Index",
       variants: [
         { label: "500g", price: "₹249" },
-        { label: "1kg", price: "₹459" }
+        { label: "1kg", price: "₹449" }
       ],
-      colors: ["Brown", "Light"],
-      rating: 4.7
+      colors: ["Brown"]
     },
-    customer: "Sneha Reddy",
-    testimonial: "Finally a healthy sweetener that doesn't compromise on taste!"
+    customer: "Vikram Singh",
+    testimonial: "Great for my diabetic diet, tastes amazing!"
+  },
+  {
+    id: 5,
+    videoUrl: "/videos/tale5.mp4",
+    product: {
+      id: 5,
+      name: "ELVRE Date Jaggery",
+      price: "₹299",
+      priceValue: 299,
+      image: "/assets/date-jaggery.png",
+      description: "Natural Dates Sweetener",
+      variants: [
+        { label: "500g", price: "₹299" },
+        { label: "1kg", price: "₹549" }
+      ],
+      colors: ["Dark Brown"]
+    },
+    customer: "Neha Gupta",
+    testimonial: "Perfect replacement for sugar in my recipes!"
   }
 ];
 
-// ============================================================
-// MAIN COMPONENT
-// ============================================================
 const TalesSection = () => {
   const [selectedTale, setSelectedTale] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedColor, setSelectedColor] = useState("");
-  const [videoPlaying, setVideoPlaying] = useState({});
   const videoRefs = useRef({});
+  const modalVideoRef = useRef(null);
   const navigate = useNavigate();
 
-  // Toggle play/pause on video click
-  const handleVideoClick = (taleId, e) => {
-    e.stopPropagation(); // Prevent opening modal
-    const video = videoRefs.current[taleId];
-    if (video) {
-      if (video.paused) {
-        video.play();
-        setVideoPlaying(prev => ({ ...prev, [taleId]: true }));
-      } else {
-        video.pause();
-        setVideoPlaying(prev => ({ ...prev, [taleId]: false }));
+  // Auto-play all card videos on mount (muted)
+  useEffect(() => {
+    Object.keys(videoRefs.current).forEach((id) => {
+      const vid = videoRefs.current[id];
+      if (vid) {
+        vid.muted = true;
+        vid.play().catch(() => {});
       }
-    }
-  };
+    });
+  }, []);
 
-  // Open modal with product details (on card click)
+  // Play card videos muted when they come into view (optional)
+  // We rely on the scroll play/pause logic in the handleIntersection if needed, but for simplicity we just play all muted.
+
+  // Open modal - pauses card videos, plays modal video with sound
   const openModal = (tale) => {
+    // Pause all card videos
+    Object.keys(videoRefs.current).forEach((id) => {
+      const vid = videoRefs.current[id];
+      if (vid) vid.pause();
+    });
     setSelectedTale(tale);
     setSelectedVariant(tale.product.variants[0] || null);
     setSelectedColor(tale.product.colors[0] || "");
     setIsModalOpen(true);
-    // Pause video if playing
-    if (videoRefs.current[tale.id]) {
-      videoRefs.current[tale.id].pause();
-      setVideoPlaying(prev => ({ ...prev, [tale.id]: false }));
-    }
   };
 
+  // Close modal - resume card videos (muted)
   const closeModal = () => {
+    if (modalVideoRef.current) {
+      modalVideoRef.current.pause();
+    }
     setIsModalOpen(false);
     setSelectedTale(null);
+    // Resume card videos
+    Object.keys(videoRefs.current).forEach((id) => {
+      const vid = videoRefs.current[id];
+      if (vid) {
+        vid.muted = true;
+        vid.play().catch(() => {});
+      }
+    });
   };
+
+  // Auto-play modal video when opened (with sound)
+  useEffect(() => {
+    if (isModalOpen && modalVideoRef.current) {
+      modalVideoRef.current.muted = false;
+      modalVideoRef.current.play().catch(() => {});
+    }
+  }, [isModalOpen]);
 
   const handleAddToCart = () => {
     const product = selectedTale.product;
@@ -170,42 +194,32 @@ const TalesSection = () => {
         <p className="section-subtitle">Real stories from our happy customers</p>
       </div>
 
-      <div className="tales-grid">
-        {talesData.map((tale) => (
-          <div key={tale.id} className="tale-card" onClick={() => openModal(tale)}>
-            <div className="tale-video-wrapper">
-              {/* Video element – no play overlay */}
-              <video
-                ref={(el) => (videoRefs.current[tale.id] = el)}
-                src={tale.videoUrl}
-                poster={tale.thumbnail}
-                muted
-                playsInline
-                onClick={(e) => handleVideoClick(tale.id, e)}
-                className="tale-video"
-                onError={(e) => {
-                  // Fallback: show thumbnail image if video fails
-                  const parent = e.target.parentNode;
-                  const fallbackImg = document.createElement('img');
-                  fallbackImg.src = tale.thumbnail;
-                  fallbackImg.alt = tale.product.name;
-                  fallbackImg.className = 'tale-fallback-img';
-                  parent.appendChild(fallbackImg);
-                  e.target.style.display = 'none';
-                }}
-              />
-              {/* Product badge */}
-              <div className="tale-product-badge">
-                <img src={tale.product.image} alt={tale.product.name} />
-                <span>{tale.product.name}</span>
+      <div className="tales-scroll-wrapper">
+        <div className="tales-grid">
+          {talesData.map((tale) => (
+            <div key={tale.id} className="tale-card" onClick={() => openModal(tale)}>
+              <div className="tale-video-wrapper">
+                <video
+                  ref={(el) => (videoRefs.current[tale.id] = el)}
+                  src={tale.videoUrl}
+                  muted
+                  playsInline
+                  className="tale-video"
+                  preload="auto"
+                  loop
+                />
+                <div className="tale-product-badge">
+                  <img src={tale.product.image} alt={tale.product.name} />
+                  <span>{tale.product.name}</span>
+                </div>
+                <div className="tale-customer-name">{tale.customer}</div>
               </div>
-              <div className="tale-customer-name">{tale.customer}</div>
+              <div className="tale-quote">
+                <p>"{tale.testimonial}"</p>
+              </div>
             </div>
-            <div className="tale-quote">
-              <p>"{tale.testimonial}"</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* ===== MODAL ===== */}
@@ -214,23 +228,33 @@ const TalesSection = () => {
           <div className="tales-modal" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={closeModal}>✕</button>
             <div className="modal-content">
-              <div className="modal-product-image">
-                <img src={selectedTale.product.image} alt={selectedTale.product.name} />
+              {/* LEFT: Video with sound */}
+              <div className="modal-video-wrapper">
+                <video
+                  ref={modalVideoRef}
+                  src={selectedTale.videoUrl}
+                  controls
+                  playsInline
+                  className="modal-video"
+                  muted={false}
+                  autoPlay
+                />
+                <div className="modal-video-caption">
+                  <span>{selectedTale.customer}</span>
+                  <p>"{selectedTale.testimonial}"</p>
+                </div>
               </div>
+
+              {/* RIGHT: Product Info */}
               <div className="modal-product-info">
                 <h3>{selectedTale.product.name}</h3>
                 <p className="product-description">{selectedTale.product.description}</p>
                 <div className="product-price">
-                  <span className="current-price">
-                    {selectedVariant ? selectedVariant.price : selectedTale.product.price}
-                  </span>
-                  <span className="original-price">
-                    ₹{Math.round((selectedVariant ? selectedVariant.priceValue : selectedTale.product.priceValue) * 1.2)}
-                  </span>
+                  <span className="current-price">{selectedVariant ? selectedVariant.price : selectedTale.product.price}</span>
+                  <span className="original-price">₹{Math.round((selectedVariant ? selectedVariant.priceValue : selectedTale.product.priceValue) * 1.2)}</span>
                 </div>
 
-                {/* Variants */}
-                {selectedTale.product.variants && selectedTale.product.variants.length > 0 && (
+                {selectedTale.product.variants && (
                   <div className="variant-section">
                     <label>Select Weight</label>
                     <div className="variant-options">
@@ -247,8 +271,7 @@ const TalesSection = () => {
                   </div>
                 )}
 
-                {/* Colors */}
-                {selectedTale.product.colors && selectedTale.product.colors.length > 0 && (
+                {selectedTale.product.colors && (
                   <div className="color-section">
                     <label>Select Color</label>
                     <div className="color-options">

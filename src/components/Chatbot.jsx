@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaPaperPlane, FaTimes, FaQuestionCircle, FaRobot } from "react-icons/fa";
+import { FaPaperPlane, FaTimes, FaRobot } from "react-icons/fa";
 import chatbotService from "../services/chatbotService";
 import { supabase } from "../supabaseClient";
 import "./Chatbot.css";
@@ -119,11 +119,6 @@ const Chatbot = ({ isOpen = false, setIsOpen = () => {} }) => {
 
   return (
     <>
-      <button className="chatbot-help-btn" onClick={() => setIsOpen(true)} aria-label="Open help assistant">
-        <FaQuestionCircle />
-        <span>Help</span>
-      </button>
-
       {isOpen && (
         <div className="chatbot-shell" role="dialog" aria-label="Elvre assistant chat">
           <div className="chatbot-header">

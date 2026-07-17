@@ -4,11 +4,15 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import WhatsApp from "./WhatsApp";
 import { supabase } from '../supabaseClient';
+import { useWishlist } from "../context/WishlistContext"; // ✅ Import wishlist hook
+import { FaHeart, FaRegHeart } from "react-icons/fa"; // ✅ Heart icons
 import "./ProductsPage.css";
 
 const ProductsPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist(); // ✅ Wishlist functions
+
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -252,6 +256,15 @@ const ProductsPage = () => {
     return products.filter(p => p.category === categoryId).length;
   };
 
+  // ─── WISHLIST HANDLERS ───
+  const toggleWishlist = (product) => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+    } else {
+      addToWishlist(product);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -421,7 +434,24 @@ const ProductsPage = () => {
                         </div>
                       </div>
                       <div className="product-info">
-                        <h3 onClick={() => navigate(`/product/${product.id}`)}>{product.name}</h3>
+                        <div className="product-header-row">
+                          <h3 onClick={() => navigate(`/product/${product.id}`)}>{product.name}</h3>
+                          {/* ✅ Wishlist Button */}
+                          <button 
+                            className="wishlist-btn" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleWishlist(product);
+                            }}
+                            title={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                          >
+                            {isInWishlist(product.id) ? (
+                              <FaHeart style={{ color: "#e74c3c" }} />
+                            ) : (
+                              <FaRegHeart />
+                            )}
+                          </button>
+                        </div>
                         <div className="product-rating">
                           <div className="stars">
                             {"★".repeat(Math.floor(reviews[product.id]?.rating || 4))}

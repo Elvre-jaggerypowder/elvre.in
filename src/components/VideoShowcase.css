@@ -24,3 +24,20 @@
   font-size: 0.8rem;
   color: rgba(255,255,255,0.6);
 }
+/* Fallback image when video fails */
+.tale-fallback-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Hide default video controls (optional) */
+.tale-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+}

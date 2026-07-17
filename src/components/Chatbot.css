@@ -1,6 +1,6 @@
 .chatbot-help-btn {
   position: fixed;
-  right: 20px;
+  left: 20px;          /* ← changed from right: 20px */
   bottom: 140px;
   z-index: 1000;
   display: inline-flex;
@@ -176,9 +176,10 @@
   cursor: pointer;
 }
 
+/* ===== MOBILE ===== */
 @media (max-width: 768px) {
   .chatbot-help-btn {
-    right: 14px;
+    left: 14px;       /* ← changed from right: 14px */
     bottom: 110px;
     padding: 10px 14px;
   }
